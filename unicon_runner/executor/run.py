@@ -30,20 +30,23 @@ def run_request(request: Request):
     subprocess.run(["podman", "build", os.path.join(
         folder_path), "-t", folder_name], capture_output=True, text=True)
 
-    result = subprocess.run(["podman", "run", "--name", folder_name + "_run", folder_name],
+    result = subprocess.run(["podman", "run", "--name", folder_name + "_run", "-m", f"{request.environment.memory_limit}m", folder_name],
                             capture_output=True, text=True)
 
     # 4. Output raw result
     stdout = result.stdout
     stderr = result.stderr
+    status = "OK"
+    if result.returncode == 137:
+        status = "MLE"
+    elif stderr.startswith("timeout"):
+        status = "TLE"
 
     # 5. Clean up folders
     files = glob.glob(os.path.join(folder_path, "*"))
     for f in files:
         os.remove(f)
     os.rmdir(folder_path)
-
-    status = "TLE" if stderr.startswith("timeout") else "OK"
 
     return {
         "status": status,
