@@ -2,6 +2,7 @@ from unicon_runner.schemas import Request
 import subprocess
 from uuid import uuid4
 import os
+import glob
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 env = Environment(loader=FileSystemLoader("unicon_runner/executor/templates"),
@@ -25,7 +26,7 @@ def run_request(request: Request):
         f.write(dockerfile)
 
     # 3. Spawn podman container
-    result = subprocess.run(["podman", "build", os.path.join(
+    subprocess.run(["podman", "build", os.path.join(
         folder_path), "-t", folder_name], capture_output=True, text=True)
 
     result = subprocess.run(["podman", "run", "--name", folder_name + "_run", folder_name],
@@ -34,6 +35,12 @@ def run_request(request: Request):
     # 4. Output raw result
     stdout = result.stdout
     stderr = result.stderr
+
+    # 5. Clean up folders
+    files = glob.glob(os.path.join(folder_path, "*"))
+    for f in files:
+        os.remove(f)
+    os.rmdir(folder_path)
 
     return {
         "stdout": stdout,
