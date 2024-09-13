@@ -22,7 +22,8 @@ def run_request(request: Request):
             f.write(file.content)
 
     with open(os.path.join(folder_path, "Dockerfile"), "w") as f:
-        dockerfile = dockerfile_template.render(entrypoint=request.entrypoint)
+        dockerfile = dockerfile_template.render(
+            entrypoint=request.entrypoint, time_limit=request.environment.time_limit)
         f.write(dockerfile)
 
     # 3. Spawn podman container
@@ -42,7 +43,10 @@ def run_request(request: Request):
         os.remove(f)
     os.rmdir(folder_path)
 
+    status = "TLE" if stderr.startswith("timeout") else "OK"
+
     return {
+        "status": status,
         "stdout": stdout,
         "stderr": stderr
     }
