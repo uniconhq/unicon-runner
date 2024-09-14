@@ -26,6 +26,13 @@ class ProgrammingEnvironment(BaseModel):
     memory_limit: int  # in MB
 
 
+class Status(str, Enum):
+    OK = "OK"
+    MLE = "MLE"
+    TLE = "TLE"
+    RTE = "RTE"
+
+
 class Request(BaseModel):
     files: list[File]
     environment: ProgrammingEnvironment

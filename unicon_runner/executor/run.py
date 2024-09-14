@@ -3,6 +3,7 @@ import subprocess
 from uuid import uuid4
 import os
 import glob
+from unicon_runner.schemas import Status
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 env = Environment(loader=FileSystemLoader("unicon_runner/executor/templates"),
@@ -36,11 +37,16 @@ def run_request(request: Request):
     # 4. Output raw result
     stdout = result.stdout
     stderr = result.stderr
-    status = "OK"
-    if result.returncode == 137:
-        status = "MLE"
-    elif stderr.startswith("timeout"):
-        status = "TLE"
+
+    match result.returncode:
+        case 137:
+            status = Status.MLE
+        case 124:
+            status = Status.TLE
+        case 1:
+            status = Status.RTE
+        case _:
+            status = Status.OK
 
     # 5. Clean up folders
     files = glob.glob(os.path.join(folder_path, "*"))
