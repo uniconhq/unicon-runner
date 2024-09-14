@@ -1,8 +1,8 @@
+import shutil
 from unicon_runner.schemas import Request
 import subprocess
 from uuid import uuid4
 import os
-import glob
 from unicon_runner.schemas import Status
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -49,10 +49,7 @@ def run_request(request: Request):
             status = Status.OK
 
     # 5. Clean up folders
-    files = glob.glob(os.path.join(folder_path, "*"))
-    for f in files:
-        os.remove(f)
-    os.rmdir(folder_path)
+    shutil.rmtree(folder_path)
 
     return {
         "status": status,
