@@ -6,8 +6,11 @@ import os
 from unicon_runner.schemas import Status
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-env = Environment(loader=FileSystemLoader("unicon_runner/executor/templates"),
-                  autoescape=select_autoescape())
+
+env = Environment(
+    loader=FileSystemLoader("unicon_runner/executor/templates"),
+    autoescape=select_autoescape(),
+)
 dockerfile_template = env.get_template("Dockerfile.jinja")
 
 
@@ -24,15 +27,30 @@ def run_request(request: Request):
 
     with open(os.path.join(folder_path, "Dockerfile"), "w") as f:
         dockerfile = dockerfile_template.render(
-            entrypoint=request.entrypoint, time_limit=request.environment.time_limit)
+            entrypoint=request.entrypoint, time_limit=request.environment.time_limit
+        )
         f.write(dockerfile)
 
     # 3. Spawn podman container
-    subprocess.run(["podman", "build", os.path.join(
-        folder_path), "-t", folder_name], capture_output=True, text=True)
+    subprocess.run(
+        ["podman", "build", os.path.join(folder_path), "-t", folder_name],
+        capture_output=True,
+        text=True,
+    )
 
-    result = subprocess.run(["podman", "run", "--name", folder_name + "_run", "-m", f"{request.environment.memory_limit}m", folder_name],
-                            capture_output=True, text=True)
+    result = subprocess.run(
+        [
+            "podman",
+            "run",
+            "--name",
+            folder_name + "_run",
+            "-m",
+            f"{request.environment.memory_limit}m",
+            folder_name,
+        ],
+        capture_output=True,
+        text=True,
+    )
 
     # 4. Output raw result
     stdout = result.stdout
@@ -51,8 +69,4 @@ def run_request(request: Request):
     # 5. Clean up folders
     shutil.rmtree(folder_path)
 
-    return {
-        "status": status,
-        "stdout": stdout,
-        "stderr": stderr
-    }
+    return {"status": status, "stdout": stdout, "stderr": stderr}

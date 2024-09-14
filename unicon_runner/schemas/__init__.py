@@ -40,6 +40,6 @@ class Request(BaseModel):
 
     @model_validator(mode="after")
     def check_entrypoint_in_files(self):
-        if (self.entrypoint not in [file.file_name for file in self.files]):
+        if self.entrypoint not in [file.file_name for file in self.files]:
             raise ValueError("entrypoint not in files")
         return self

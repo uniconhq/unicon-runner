@@ -13,6 +13,7 @@ async def lifespan(app: FastAPI):
         os.mkdir("temp")
     yield
 
+
 app = FastAPI(lifespan=lifespan)
 
 
