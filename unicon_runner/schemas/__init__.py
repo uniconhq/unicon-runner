@@ -1,6 +1,6 @@
 from enum import Enum
 from pydantic import BaseModel, field_validator, model_validator
-from pathvalidate import is_valid_filename, sanitize_filepath
+from pathvalidate import is_valid_filename
 
 
 class File(BaseModel):

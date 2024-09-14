@@ -1,9 +1,11 @@
+import json
 import shutil
 from unicon_runner.schemas import Request
-import subprocess
+import asyncio
 from uuid import uuid4
 import os
 from unicon_runner.schemas import Status
+from unicon_runner.util.redis_connection import redis_conn
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -14,9 +16,9 @@ env = Environment(
 dockerfile_template = env.get_template("Dockerfile.jinja")
 
 
-def run_request(request: Request):
+async def run_request(request: Request, request_id: str):
     # 1. Generate temp folder name
-    folder_name = str(uuid4()).replace("-", "")
+    folder_name = request_id
     folder_path = os.path.join("temp", folder_name)
     os.mkdir(folder_path)
 
@@ -32,31 +34,22 @@ def run_request(request: Request):
         f.write(dockerfile)
 
     # 3. Spawn podman container
-    subprocess.run(
-        ["podman", "build", os.path.join(folder_path), "-t", folder_name],
-        capture_output=True,
-        text=True,
-    )
+    proc = await asyncio.create_subprocess_shell(
+        f"podman build {folder_path} -t {folder_name}",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE)
 
-    result = subprocess.run(
-        [
-            "podman",
-            "run",
-            "--name",
-            folder_name + "_run",
-            "-m",
-            f"{request.environment.memory_limit}m",
-            folder_name,
-        ],
-        capture_output=True,
-        text=True,
-    )
+    await proc.wait()
+
+    proc = await asyncio.create_subprocess_shell(
+        f"podman run --name {folder_name}_run -m {request.environment.memory_limit}m {folder_name}",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE)
 
     # 4. Output raw result
-    stdout = result.stdout
-    stderr = result.stderr
+    stdout, stderr = await proc.communicate()
 
-    match result.returncode:
+    match proc.returncode:
         case 137:
             status = Status.MLE
         case 124:
@@ -69,4 +62,5 @@ def run_request(request: Request):
     # 5. Clean up folders
     shutil.rmtree(folder_path)
 
-    return {"status": status, "stdout": stdout, "stderr": stderr}
+    redis_conn.set(request_id, json.dumps(
+        {"status": status.value, "stdout": stdout.decode(), "stderr": stderr.decode()}))
