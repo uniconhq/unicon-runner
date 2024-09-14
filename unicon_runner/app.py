@@ -1,4 +1,3 @@
-from enum import Enum
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from unicon_runner.executor.run import run_request
