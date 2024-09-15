@@ -2,7 +2,6 @@ import json
 import shutil
 from unicon_runner.schemas import Request
 import asyncio
-from uuid import uuid4
 import os
 from unicon_runner.schemas import Status
 from unicon_runner.util.redis_connection import redis_conn
@@ -37,14 +36,16 @@ async def run_request(request: Request, request_id: str):
     proc = await asyncio.create_subprocess_shell(
         f"podman build {folder_path} -t {folder_name}",
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE)
+        stderr=asyncio.subprocess.PIPE,
+    )
 
     await proc.wait()
 
     proc = await asyncio.create_subprocess_shell(
         f"podman run --name {folder_name}_run -m {request.environment.memory_limit}m {folder_name}",
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE)
+        stderr=asyncio.subprocess.PIPE,
+    )
 
     # 4. Output raw result
     stdout, stderr = await proc.communicate()
@@ -62,5 +63,13 @@ async def run_request(request: Request, request_id: str):
     # 5. Clean up folders
     shutil.rmtree(folder_path)
 
-    redis_conn.set(request_id, json.dumps(
-        {"status": status.value, "stdout": stdout.decode(), "stderr": stderr.decode()}))
+    redis_conn.set(
+        request_id,
+        json.dumps(
+            {
+                "status": status.value,
+                "stdout": stdout.decode(),
+                "stderr": stderr.decode(),
+            }
+        ),
+    )
