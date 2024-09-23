@@ -4,7 +4,6 @@ from unicon_runner.schemas import Request
 import asyncio
 import os
 from unicon_runner.schemas import Status
-from unicon_runner.util.redis_connection import redis_conn
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -63,13 +62,8 @@ async def run_request(request: Request, request_id: str):
     # 5. Clean up folders
     shutil.rmtree(folder_path)
 
-    redis_conn.set(
-        request_id,
-        json.dumps(
-            {
-                "status": status.value,
-                "stdout": stdout.decode(),
-                "stderr": stderr.decode(),
-            }
-        ),
-    )
+    return {
+        "status": status.value,
+        "stdout": stdout.decode(),
+        "stderr": stderr.decode(),
+    }

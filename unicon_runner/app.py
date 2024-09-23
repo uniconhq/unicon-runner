@@ -1,40 +1,51 @@
-from http import HTTPStatus
 import json
 from uuid import uuid4
-from fastapi import FastAPI, BackgroundTasks, Response
-from contextlib import asynccontextmanager
 from unicon_runner.executor.run import run_request
-from unicon_runner.util.redis_connection import redis_conn
-import os
 
 from unicon_runner.schemas import Request
 
+import pika
+import asyncio
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    if "temp" not in os.listdir():
-        os.mkdir("temp")
-    yield
+TASK_RUNNER_QUEUE_NAME = "task_runner"
+TASK_RUNNER_OUTPUT_QUEUE_NAME = "task_runner_results"
+
+connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
+
+# Set up MQ channels
+input_channel = connection.channel()
+input_channel.queue_declare(queue=TASK_RUNNER_QUEUE_NAME, durable=True)
+input_channel.basic_qos(prefetch_count=1)
+
+output_channel = connection.channel()
+output_channel.exchange_declare(
+    exchange=TASK_RUNNER_OUTPUT_QUEUE_NAME, exchange_type="fanout"
+)
 
 
-app = FastAPI(lifespan=lifespan)
-
-
-@app.post("/submissions", status_code=HTTPStatus.ACCEPTED)
-async def run_submission(request: Request, background_tasks: BackgroundTasks):
+async def run_submission(request: Request):
     request_id = str(uuid4()).replace("-", "")
-    background_tasks.add_task(run_request, request, request_id)
-    redis_conn.set(request_id, "")
-    print(redis_conn.exists(request_id))
-    return {"submission_id": request_id}
+    result = await run_request(request, request_id)
+
+    message = json.dumps(result)
+    output_channel.basic_publish(
+        exchange=TASK_RUNNER_OUTPUT_QUEUE_NAME, routing_key="", body=message
+    )
+    print(f" [x] Sent {message}")
 
 
-@app.get("/submissions/{id}")
-async def get_submission(id, response: Response):
-    if not redis_conn.exists(id):
-        response.status_code = HTTPStatus.NOT_FOUND
-        return
-    result = redis_conn.get(id)
-    if not result:
-        response.status_code = HTTPStatus.ACCEPTED
-    return json.loads(result)
+def retrieve_job(ch, method, properties, body):
+    asyncio.run(run_submission(Request.model_validate_json(body)))
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+
+
+def main():
+    """Worker queue to listen for execute jobs"""
+    input_channel.basic_consume(
+        queue=TASK_RUNNER_QUEUE_NAME, on_message_callback=retrieve_job
+    )
+    input_channel.start_consuming()
+
+
+if __name__ == "__main__":
+    main()
