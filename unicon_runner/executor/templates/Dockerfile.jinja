@@ -1,0 +1,5 @@
+FROM python:3.11.9
+
+ADD . .
+
+CMD ["timeout", "--verbose", "{{time_limit}}s", "python", "{{entrypoint}}"]
