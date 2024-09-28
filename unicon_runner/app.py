@@ -1,7 +1,7 @@
 import json
 from uuid import uuid4
-from unicon_runner.executor.run import run_request
 
+from unicon_runner.runner.runner import Runner, RunnerType
 from unicon_runner.schemas import Request
 
 import pika
@@ -22,12 +22,14 @@ output_channel.exchange_declare(
     exchange=TASK_RUNNER_OUTPUT_QUEUE_NAME, exchange_type="fanout"
 )
 
+executor = Runner(RunnerType.PODMAN)
+
 
 async def run_submission(request: Request):
     request_id = str(uuid4()).replace("-", "")
-    result = await run_request(request, request_id)
+    result = await executor.run_request(request, request_id)
 
-    message = json.dumps(result)
+    message = result.model_dump_json()
     output_channel.basic_publish(
         exchange=TASK_RUNNER_OUTPUT_QUEUE_NAME, routing_key="", body=message
     )
