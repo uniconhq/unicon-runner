@@ -9,8 +9,10 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 
 class PodmanExecutor(Executor):
+    """Uses podman + Dockerfile in template to execute code"""
+
     env = Environment(
-        loader=FileSystemLoader("unicon_runner/executor/templates"),
+        loader=FileSystemLoader("unicon_runner/executor/variants/podman/templates"),
         autoescape=select_autoescape(),
     )
     dockerfile_template = env.get_template("Dockerfile.jinja")

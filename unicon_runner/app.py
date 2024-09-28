@@ -1,4 +1,3 @@
-import json
 from uuid import uuid4
 
 from unicon_runner.runner.runner import Runner, RunnerType

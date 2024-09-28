@@ -1,9 +1,9 @@
 from enum import Enum
 
 from unicon_runner.executor.variants.base import Executor, Result
-from unicon_runner.executor.variants.podman import PodmanExecutor
-from unicon_runner.executor.variants.sandbox import SandboxExecutor
-from unicon_runner.executor.variants.unsafe import UnsafeExecutor
+from unicon_runner.executor.variants.podman.executor import PodmanExecutor
+from unicon_runner.executor.variants.sandbox.executor import SandboxExecutor
+from unicon_runner.executor.variants.unsafe.executor import UnsafeExecutor
 from unicon_runner.schemas import Request
 
 
