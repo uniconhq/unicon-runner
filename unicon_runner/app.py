@@ -21,7 +21,7 @@ output_channel.exchange_declare(
     exchange=TASK_RUNNER_OUTPUT_QUEUE_NAME, exchange_type="fanout"
 )
 
-executor = Runner(RunnerType.PODMAN)
+executor = Runner(RunnerType.UNSAFE)
 
 
 async def run_submission(request: Request):
