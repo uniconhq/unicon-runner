@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+import os
+import shutil
 
 from pydantic import BaseModel
 
@@ -12,6 +14,25 @@ class Result(BaseModel):
 
 
 class Executor(ABC):
-    @abstractmethod
     async def run_request(self, request: Request, request_id: str) -> Result:
+        folder_path = self.set_up_request(request_id)
+        self._execute(request_id, request, folder_path)
+        self.clean_up_folder(folder_path)
+
+    def set_up_request(self, request_id: str) -> str:
+        """
+        All executors will be given a temporary folder named after the request id to work with.
+        Returns path to this temporary folder.
+        """
+        folder_name = request_id
+        folder_path = os.path.join("temp", folder_name)
+        os.mkdir(folder_path)
+        return folder_path
+
+    def clean_up_folder(self, folder_path: str):
+        """Cleans up the temporary folder"""
+        shutil.rmtree(folder_path)
+
+    @abstractmethod
+    async def _execute(self, request: Request, request_id: str):
         raise NotImplementedError

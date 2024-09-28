@@ -1,4 +1,3 @@
-import shutil
 from unicon_runner.executor.variants.base import Executor, Result
 from unicon_runner.schemas import Request
 import asyncio
@@ -17,13 +16,12 @@ class PodmanExecutor(Executor):
     )
     dockerfile_template = env.get_template("Dockerfile.jinja")
 
-    async def run_request(self, request: Request, request_id: str) -> Result:
-        # 1. Generate temp folder name
+    async def _execute(
+        self, request: Request, request_id: str, folder_path: str
+    ) -> Result:
         folder_name = request_id
-        folder_path = os.path.join("temp", folder_name)
-        os.mkdir(folder_path)
 
-        # 2. Create files
+        # 1. Create files
         for file in request.files:
             with open(os.path.join(folder_path, file.file_name), "w") as f:
                 f.write(file.content)
@@ -34,7 +32,7 @@ class PodmanExecutor(Executor):
             )
             f.write(dockerfile)
 
-        # 3. Spawn podman container
+        # 2. Spawn podman container
         proc = await asyncio.create_subprocess_shell(
             f"podman build {folder_path} -t {folder_name}",
             stdout=asyncio.subprocess.PIPE,
@@ -49,7 +47,7 @@ class PodmanExecutor(Executor):
             stderr=asyncio.subprocess.PIPE,
         )
 
-        # 4. Output raw result
+        # 3. Output raw result
         stdout, stderr = await proc.communicate()
 
         match proc.returncode:
@@ -61,9 +59,6 @@ class PodmanExecutor(Executor):
                 status = Status.RTE
             case _:
                 status = Status.OK
-
-        # 5. Clean up folders
-        shutil.rmtree(folder_path)
 
         return Result.model_validate(
             {
