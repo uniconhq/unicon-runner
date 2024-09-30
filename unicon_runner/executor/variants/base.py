@@ -32,7 +32,7 @@ class Executor(ABC):
         """
         folder_name = request_id
         folder_path = os.path.join("temp", folder_name)
-        os.mkdir(folder_path)
+        os.makedirs(folder_path)
 
         return folder_path
 
