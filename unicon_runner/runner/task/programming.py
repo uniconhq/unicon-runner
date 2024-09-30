@@ -1,10 +1,10 @@
 import abc
 from enum import Enum
 from itertools import groupby
-from typing import Any, Generic, TypeVar, Literal
+from typing import Any, Generic, Literal, TypeVar
 from uuid import uuid4
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 
 from unicon_runner.executor.variants.base import Executor
 from unicon_runner.lib.common import CustomBaseModel

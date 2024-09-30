@@ -1,10 +1,10 @@
-from unicon_runner.executor.variants.base import Executor, Result
-from unicon_runner.schemas import Request
 import asyncio
 import os
-from unicon_runner.schemas import Status
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+from unicon_runner.executor.variants.base import Executor, Result
+from unicon_runner.schemas import Request, Status
 
 
 class PodmanExecutor(Executor):

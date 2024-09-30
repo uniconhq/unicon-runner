@@ -1,8 +1,9 @@
-from unicon_runner.runner.runner import Runner, RunnerType
-from unicon_runner.runner.task.programming import ProgrammingTask
+import asyncio
 
 import pika
-import asyncio
+
+from unicon_runner.runner.runner import Runner, RunnerType
+from unicon_runner.runner.task.programming import ProgrammingTask
 
 TASK_RUNNER_QUEUE_NAME = "task_runner"
 TASK_RUNNER_OUTPUT_QUEUE_NAME = "task_runner_results"
