@@ -1,20 +1,12 @@
 import asyncio
 import os
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-
 from unicon_runner.executor.variants.base import Executor, Result
 from unicon_runner.schemas import Request, Status
 
 
 class PodmanExecutor(Executor):
     """Uses podman + Dockerfile in template to execute code"""
-
-    env = Environment(
-        loader=FileSystemLoader("unicon_runner/executor/variants/podman/templates"),
-        autoescape=select_autoescape(),
-    )
-    dockerfile_template = env.get_template("Dockerfile.jinja")
 
     async def _execute(
         self, request: Request, request_id: str, folder_path: str
@@ -26,23 +18,15 @@ class PodmanExecutor(Executor):
             with open(os.path.join(folder_path, file.file_name), "w") as f:
                 f.write(file.content)
 
-        with open(os.path.join(folder_path, "Dockerfile"), "w") as f:
-            dockerfile = self.dockerfile_template.render(
-                entrypoint=request.entrypoint, time_limit=request.environment.time_limit
-            )
-            f.write(dockerfile)
-
         # 2. Spawn podman container
-        proc = await asyncio.create_subprocess_shell(
-            f"podman build {folder_path} -t {folder_name}",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
 
-        await proc.wait()
+        _IMAGE: str = "python:3.11.9"  # TEMP: Hardcoded base image
 
         proc = await asyncio.create_subprocess_shell(
-            f"podman run --name {folder_name}_run -m {request.environment.memory_limit}m {folder_name}",
+            f"podman run --name {folder_name}_run "
+            f"-m {request.environment.memory_limit}m "
+            f"-v ./{folder_path}:/run {_IMAGE} "
+            f"timeout --verbose {request.environment.time_limit}s python run/{request.entrypoint}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
