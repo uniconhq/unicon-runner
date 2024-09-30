@@ -23,7 +23,7 @@ class PodmanExecutor(Executor):
         _IMAGE: str = "python:3.11.9"  # TEMP: Hardcoded base image
 
         proc = await asyncio.create_subprocess_shell(
-            f"podman run --name {folder_name}_run "
+            f"podman run --rm --name {folder_name}_run "
             f"-m {request.environment.memory_limit}m "
             f"-v ./{folder_path}:/run {_IMAGE} "
             f"timeout --verbose {request.environment.time_limit}s python run/{request.entrypoint}",
