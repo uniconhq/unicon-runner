@@ -5,7 +5,10 @@ from unicon_runner.executor.variants.base import Executor, Result
 from unicon_runner.schemas import Request, Status
 
 
+# TODO: Haven't tested this at all. Doesn't work on MAC, and I can't run it on xlog0 yet due to needing rabbitmq
 class SandboxExecutor(Executor):
+    """Uses conty"""
+
     env = Environment(
         loader=FileSystemLoader("unicon_runner/executor/variants/unsafe/templates"),
         autoescape=select_autoescape(),

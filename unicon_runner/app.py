@@ -1,7 +1,5 @@
-from uuid import uuid4
-
 from unicon_runner.runner.runner import Runner, RunnerType
-from unicon_runner.schemas import Request
+from unicon_runner.runner.task.programming import ProgrammingTask
 
 import pika
 import asyncio
@@ -21,12 +19,11 @@ output_channel.exchange_declare(
     exchange=TASK_RUNNER_OUTPUT_QUEUE_NAME, exchange_type="fanout"
 )
 
-executor = Runner(RunnerType.UNSAFE)
+executor = Runner(RunnerType.PODMAN)
 
 
-async def run_submission(request: Request):
-    request_id = str(uuid4()).replace("-", "")
-    result = await executor.run_request(request, request_id)
+async def run_submission(programming_task: ProgrammingTask):
+    result = await executor.run_programming_task(programming_task=programming_task)
 
     message = result.model_dump_json()
     output_channel.basic_publish(
@@ -36,7 +33,16 @@ async def run_submission(request: Request):
 
 
 def retrieve_job(ch, method, properties, body):
-    asyncio.run(run_submission(Request.model_validate_json(body)))
+    try:
+        task = ProgrammingTask.model_validate_json(body)
+        print(task)
+    except Exception as e:
+        print(body)
+        print(e)
+        print("fail")
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+        return
+    asyncio.run(run_submission(task))
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
