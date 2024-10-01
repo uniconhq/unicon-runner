@@ -41,6 +41,7 @@ class TaskEvalStatus(str, Enum):
 
 
 class TaskEvalResult(BaseModel, Generic[TaskResult]):
+    submission_id: str
     status: TaskEvalStatus
     result: TaskResult | None
     error: str | None = None
@@ -67,6 +68,7 @@ class Status(str, Enum):
     MLE = "MLE"
     TLE = "TLE"
     RTE = "RTE"
+    WA = "WA"
 
 
 class Request(BaseModel):

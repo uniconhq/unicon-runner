@@ -2,6 +2,7 @@ import abc
 from enum import Enum
 from itertools import groupby
 from typing import Any, Generic, Literal, TypeVar
+from pprint import pprint
 from uuid import uuid4
 
 from pydantic import BaseModel
@@ -12,6 +13,7 @@ from unicon_runner.schemas import (
     File,
     ProgrammingEnvironment,
     Request,
+    Status,
     TaskEvalResult,
     TaskEvalStatus,
 )
@@ -35,7 +37,6 @@ async def run_program(
     entrypoint: str,
     executor: Executor,
 ) -> RunnerResponse:
-    print(files, environment, entrypoint)
     executor_resp = await executor.run_request(
         request=Request(files=files, environment=environment, entrypoint=entrypoint),
         request_id=str(uuid4()),
@@ -86,7 +87,6 @@ class ExtractProgramOutputStep(Step[RunnerResponse, Unused, str]):
 
 class StringMatchStep(Step[str, str, bool]):
     async def run(self, input: str, expected_answer: str, *__unused_args) -> bool:
-        print(repr(input), repr(expected_answer))
         return input == expected_answer
 
 
@@ -150,6 +150,9 @@ class Testcase(BaseModel):
         # TEMP: Assume that steps are a linear sequence and run them in order
         step_idx: int = 0
         prev_step_output: Any = user_input
+
+        results = {"status": Status.OK, "stdout": "", "stderr": ""}
+
         while step_idx < len(self.steps):
             step = self.steps[step_idx]
 
@@ -157,12 +160,26 @@ class Testcase(BaseModel):
             step_output = await step.run(
                 prev_step_output, step_expected_answer, environment, executor
             )
+
             print(f"Step {step.id} [{step.type}] output: {step_output}")
 
+            match step:
+                case PyRunFunctionStep():
+                    results = step_output
+                case ExtractProgramOutputStep():
+                    pass
+                case StringMatchStep():
+                    if not step_output:
+                        results.status = Status.WA
+                case _:
+                    pass
+
+            if results.status != Status.OK:
+                return results
             prev_step_output = step_output
             step_idx += 1
 
-        return prev_step_output
+        return results
 
 
 class TaskType(str, Enum):
@@ -200,5 +217,11 @@ class ProgrammingTask(BaseModel):
                 )
             )
 
+        pprint(results)
+
         # TODO: check output and handle pending testcases
-        return TaskEvalResult(status=TaskEvalStatus.SUCCESS, result=False)
+        return TaskEvalResult(
+            submission_id=self.submission_id,
+            status=TaskEvalStatus.SUCCESS,
+            result=results,
+        )
