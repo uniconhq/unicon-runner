@@ -1,6 +1,7 @@
 import os
 import shutil
 from abc import ABC, abstractmethod
+import time
 
 from pydantic import BaseModel
 
@@ -37,6 +38,7 @@ class Executor(ABC):
 
     def clean_up_folder(self, folder_path: str):
         """Cleans up the temporary folder"""
+        time.sleep(5)
         shutil.rmtree(folder_path)
 
     @abstractmethod

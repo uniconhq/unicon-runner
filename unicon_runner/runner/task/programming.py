@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel
 
-from unicon_runner.executor.variants.base import Executor
+from unicon_runner.executor.variants.base import Executor, Result
 from unicon_runner.lib.common import CustomBaseModel
 from unicon_runner.schemas import (
     File,
@@ -87,6 +87,7 @@ class ExtractProgramOutputStep(Step[RunnerResponse, Unused, str]):
 
 class StringMatchStep(Step[str, str, bool]):
     async def run(self, input: str, expected_answer: str, *__unused_args) -> bool:
+        print(repr(input), repr(expected_answer))
         return input == expected_answer
 
 
@@ -151,7 +152,7 @@ class Testcase(BaseModel):
         step_idx: int = 0
         prev_step_output: Any = user_input
 
-        results = {"status": Status.OK, "stdout": "", "stderr": ""}
+        results = Result(status=Status.OK, stdout="", stderr="")
 
         while step_idx < len(self.steps):
             step = self.steps[step_idx]
@@ -163,16 +164,11 @@ class Testcase(BaseModel):
 
             print(f"Step {step.id} [{step.type}] output: {step_output}")
 
-            match step:
-                case PyRunFunctionStep():
-                    results = step_output
-                case ExtractProgramOutputStep():
-                    pass
-                case StringMatchStep():
-                    if not step_output:
-                        results.status = Status.WA
-                case _:
-                    pass
+            if step.type == StepType.PY_RUN_FUNCTION:
+                results = step_output
+            elif step.type == StepType.STRING_MATCH:
+                if not step_output:
+                    results.status = Status.WA
 
             if results.status != Status.OK:
                 return results
@@ -216,8 +212,6 @@ class ProgrammingTask(BaseModel):
                     executor,
                 )
             )
-
-        pprint(results)
 
         # TODO: check output and handle pending testcases
         return TaskEvalResult(
