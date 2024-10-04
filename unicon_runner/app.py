@@ -1,3 +1,4 @@
+import os
 import asyncio
 
 import pika
@@ -8,7 +9,7 @@ from unicon_runner.runner.task.programming import ProgrammingTask
 TASK_RUNNER_QUEUE_NAME = "unicon_tasks"
 TASK_RUNNER_OUTPUT_QUEUE_NAME = "unicon_task_results"
 
-connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
+connection = pika.BlockingConnection(pika.URLParameters(os.getenv("RABBITMQ_URL")))
 
 # Set up MQ channels
 input_channel = connection.channel()
