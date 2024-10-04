@@ -16,9 +16,7 @@ input_channel.queue_declare(queue=TASK_RUNNER_QUEUE_NAME, durable=True)
 input_channel.basic_qos(prefetch_count=1)
 
 output_channel = connection.channel()
-output_channel.exchange_declare(
-    exchange=TASK_RUNNER_OUTPUT_QUEUE_NAME, exchange_type="fanout"
-)
+output_channel.queue_declare(queue=TASK_RUNNER_OUTPUT_QUEUE_NAME, durable=True)
 
 executor = Runner(RunnerType.UNSAFE)
 
@@ -28,7 +26,7 @@ async def run_submission(programming_task: ProgrammingTask):
 
     message = result.model_dump_json()
     output_channel.basic_publish(
-        exchange=TASK_RUNNER_OUTPUT_QUEUE_NAME, routing_key="", body=message
+        exchange="", routing_key=TASK_RUNNER_OUTPUT_QUEUE_NAME, body=message
     )
     print(f" [x] Sent {message}")
 
