@@ -1,11 +1,13 @@
 import os
 import asyncio
 
+from dotenv import load_dotenv
 import pika
 
-from unicon_runner.runner.runner import Runner, RunnerType
+from unicon_runner.runner.runner import Runner
 from unicon_runner.runner.task.programming import ProgrammingTask
 
+load_dotenv()
 TASK_RUNNER_QUEUE_NAME = "unicon_tasks"
 TASK_RUNNER_OUTPUT_QUEUE_NAME = "unicon_task_results"
 
@@ -19,7 +21,7 @@ input_channel.basic_qos(prefetch_count=1)
 output_channel = connection.channel()
 output_channel.queue_declare(queue=TASK_RUNNER_OUTPUT_QUEUE_NAME, durable=True)
 
-executor = Runner(RunnerType.UNSAFE)
+executor = Runner(os.getenv("RUNNER_TYPE"))
 
 
 async def run_submission(programming_task: ProgrammingTask):
@@ -37,10 +39,7 @@ def retrieve_job(ch, method, properties, body):
         task = ProgrammingTask.model_validate_json(body)
         print(task)
     except Exception as e:
-        print(body)
         print(e)
-        print("fail")
-        ch.basic_ack(delivery_tag=method.delivery_tag)
         return
     asyncio.run(run_submission(task))
     ch.basic_ack(delivery_tag=method.delivery_tag)
