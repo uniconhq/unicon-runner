@@ -8,7 +8,7 @@ import asyncio
 
 with open("unicon_runner/scripts/test.json") as f:
     EXAMPLE = f.read()
-
+# noqa: F821
 executor = Runner(os.getenv("RUNNER_TYPE"))  # noqa: F821
 
 

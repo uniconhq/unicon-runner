@@ -7,7 +7,6 @@ from unicon_runner.executor.variants.base import Executor, Result
 from unicon_runner.schemas import Request, Status
 
 
-# TODO: Haven't tested this at all. Doesn't work on MAC, and I can't run it on xlog0 yet due to needing rabbitmq
 class SandboxExecutor(Executor):
     """Uses conty"""
 
@@ -18,7 +17,7 @@ class SandboxExecutor(Executor):
     pyproject_template = env.get_template("pyproject.toml.jinja")
     CODE_FOLDER_NAME = "src"
     RUN_SCRIPT = "unicon_runner/executor/variants/unsafe/scripts/run.sh"
-    CONTY = "conty.sh"
+    CONTY = os.getenv("CONTY_PATH")
 
     async def _execute(
         self, request: Request, request_id: str, folder_path: str
