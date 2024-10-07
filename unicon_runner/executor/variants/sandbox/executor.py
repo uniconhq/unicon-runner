@@ -40,7 +40,7 @@ class SandboxExecutor(Executor):
 
         # 2. Cd into temp folder and run uv sync && uv run entry
         proc = await asyncio.create_subprocess_shell(
-            f"{self.CONTY} ./{self.RUN_SCRIPT} {folder_path} {self.CODE_FOLDER_NAME}/{request.entrypoint} {request.environment.memory_limit * 1024} {request.environment.time_limit}",
+            f"SANDBOX=1 SANDBOX_LEVEL=1 QUIET_MODE=1 {self.CONTY} ./{self.RUN_SCRIPT} {folder_path} {self.CODE_FOLDER_NAME}/{request.entrypoint} {request.environment.memory_limit * 1024} {request.environment.time_limit}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
