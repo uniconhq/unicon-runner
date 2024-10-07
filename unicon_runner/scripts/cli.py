@@ -1,12 +1,15 @@
 """CLI script to run a programming task without rabbitmq"""
 
-from unicon_runner.app import executor
+import os
+from unicon_runner.runner.runner import Runner
 from unicon_runner.runner.task.programming import ProgrammingTask
 from pprint import pprint
 import asyncio
 
 with open("unicon_runner/scripts/test.json") as f:
     EXAMPLE = f.read()
+
+executor = Runner(os.getenv("RUNNER_TYPE"))  # noqa: F821
 
 
 async def run_programming_task():
