@@ -32,9 +32,6 @@ class SandboxExecutor(Executor):
             pyproject_file = self.pyproject_template.render()
             f.write(pyproject_file)
 
-        with open(os.path.join(folder_path, "README.md"), "w") as f:
-            f.write("")
-
         # 2. Cd into temp folder and run uv sync && uv run entry
         proc = await asyncio.create_subprocess_shell(
             f"SANDBOX=1 SANDBOX_LEVEL=1 QUIET_MODE=1 {self.CONTY} "
