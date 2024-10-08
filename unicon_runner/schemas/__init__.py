@@ -47,10 +47,6 @@ class TaskEvalResult(BaseModel, Generic[TaskResult]):
     error: str | None = None
 
 
-class ProgrammingLanguage(str, Enum):
-    PYTHON = "PYTHON"
-
-
 class RunnerRequest(BaseModel):
     files: list[File]
     environment: ProgrammingEnvironment
