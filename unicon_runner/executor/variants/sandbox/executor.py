@@ -40,6 +40,8 @@ class SandboxExecutor(Executor):
             f"SANDBOX=1 SANDBOX_LEVEL=1 QUIET_MODE=1 {self.CONTY} "
             f"--bind {os.path.abspath(folder_path)} ~/{folder_path} "
             f"--ro-bind {os.path.abspath(self.RUN_SCRIPT)} ~/{self.RUN_SCRIPT} "
+            # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
+            # We are using `uv` as the environment manager and program runner
             f"--ro-bind ~/.cargo ~/.cargo "
             f"./{self.RUN_SCRIPT} {folder_path} {self.CODE_FOLDER_NAME}/{request.entrypoint} {request.environment.memory_limit * 1024} {request.environment.time_limit}",
             stdout=asyncio.subprocess.PIPE,
