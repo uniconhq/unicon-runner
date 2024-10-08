@@ -1,5 +1,9 @@
 .venv
 __pycache__
-temp
 .ruff_cache
+.mypy_cache
+
 .env
+
+# Used for code execution
+temp
