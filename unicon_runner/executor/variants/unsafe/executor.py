@@ -3,7 +3,7 @@ import os
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from unicon_runner.executor.variants.base import Executor, Result
+from unicon_runner.executor.variants.base import Executor, ExecutorResult
 from unicon_runner.schemas import Request, Status
 
 
@@ -18,7 +18,7 @@ class UnsafeExecutor(Executor):
     CODE_FOLDER_NAME = "src"
     RUN_SCRIPT = "unicon_runner/executor/variants/unsafe/scripts/run.sh"
 
-    async def _execute(self, request: Request, request_id: str, folder_path: str) -> Result:
+    async def _execute(self, request: Request, request_id: str, folder_path: str) -> ExecutorResult:
         # 1. Copy the uv files
         code_folder_path = os.path.join(folder_path, self.CODE_FOLDER_NAME)
         print(code_folder_path)
@@ -55,7 +55,7 @@ class UnsafeExecutor(Executor):
                 status = Status.OK
 
         # 3. Return result
-        return Result.model_validate(
+        return ExecutorResult.model_validate(
             {
                 "status": status.value,
                 "stdout": stdout.decode(),

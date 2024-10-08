@@ -1,14 +1,14 @@
 import asyncio
 import os
 
-from unicon_runner.executor.variants.base import Executor, Result
+from unicon_runner.executor.variants.base import Executor, ExecutorResult
 from unicon_runner.schemas import Request, Status
 
 
 class PodmanExecutor(Executor):
     """Uses podman + Dockerfile in template to execute code"""
 
-    async def _execute(self, request: Request, request_id: str, folder_path: str) -> Result:
+    async def _execute(self, request: Request, request_id: str, folder_path: str) -> ExecutorResult:
         folder_name = request_id
 
         # 1. Create files
@@ -42,7 +42,7 @@ class PodmanExecutor(Executor):
             case _:
                 status = Status.OK
 
-        return Result.model_validate(
+        return ExecutorResult.model_validate(
             {
                 "status": status.value,
                 "stdout": stdout.decode(),

@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel
 
-from unicon_runner.executor.variants.base import Executor, Result
+from unicon_runner.executor.variants.base import Executor, ExecutorResult
 from unicon_runner.lib.common import CustomBaseModel
 from unicon_runner.schemas import (
     File,
@@ -16,32 +16,6 @@ from unicon_runner.schemas import (
     TaskEvalResult,
     TaskEvalStatus,
 )
-
-
-class TestcaseResult(BaseModel):
-    status: int
-    stdout: str
-    stderr: str
-
-
-class RunnerResponse(BaseModel):
-    # Reference: https://github.com/uniconhq/unicon-runner/blob/main/unicon_runner/executor/run.py#L69-L73
-    submission_id: str
-    testcase_results: list[TestcaseResult]
-
-
-async def run_program(
-    files: list[File],
-    environment: ProgrammingEnvironment,
-    entrypoint: str,
-    executor: Executor,
-) -> RunnerResponse:
-    executor_resp = await executor.run_request(
-        request=Request(files=files, environment=environment, entrypoint=entrypoint),
-        request_id=str(uuid4()),
-    )
-
-    return executor_resp
 
 
 class StepType(str, Enum):
@@ -77,10 +51,10 @@ class Step(
         pass
 
 
-class ExtractProgramOutputStep(Step[RunnerResponse, Unused, str]):
+class ExtractProgramOutputStep(Step[ExecutorResult, Unused, str]):
     key: Literal["stdout", "stderr", "status"]
 
-    async def run(self, user_input: RunnerResponse, *__unused_args) -> str:
+    async def run(self, user_input: ExecutorResult, *__unused_args) -> str:
         return getattr(user_input, self.key)
 
 
@@ -90,7 +64,7 @@ class StringMatchStep(Step[str, str, bool]):
         return input == expected_answer
 
 
-class PyRunFunctionStep(Step[list[File], Unused, RunnerResponse]):
+class PyRunFunctionStep(Step[list[File], Unused, ExecutorResult]):
     file_name: str
     function_name: str
     arguments: list[int | str]
@@ -102,7 +76,7 @@ class PyRunFunctionStep(Step[list[File], Unused, RunnerResponse]):
         _: Unused,
         environment: ProgrammingEnvironment,
         executor: Executor,
-    ) -> RunnerResponse:
+    ) -> ExecutorResult:
         def stringify_arg(arg: int | str) -> str:
             # Integers are passed as-is, strings are wrapped in double quotes
             return str(arg) if isinstance(arg, int) else f'"{arg}"'
@@ -117,11 +91,13 @@ class PyRunFunctionStep(Step[list[File], Unused, RunnerResponse]):
         # TODO: Remove dependence on `print` and `stdout`
         assembled_code = f"from {self.file_name.split(".py")[0]} import {self.function_name}\n\nprint({func_invocation})"
 
-        return await run_program(
-            user_input + [File(file_name="__run.py", content=assembled_code)],
-            environment,
-            "__run.py",
-            executor,
+        return await executor.run_request(
+            request=Request(
+                files=user_input + [File(file_name="__run.py", content=assembled_code)],
+                environment=environment,
+                entrypoint="__run.py",
+            ),
+            request_id=str(uuid4()),
         )
 
 
@@ -151,7 +127,7 @@ class Testcase(BaseModel):
         step_idx: int = 0
         prev_step_output: Any = user_input
 
-        results = Result(status=Status.OK, stdout="", stderr="")
+        results = ExecutorResult(status=Status.OK, stdout="", stderr="")
 
         while step_idx < len(self.steps):
             step = self.steps[step_idx]
@@ -188,7 +164,7 @@ class ProgrammingTask(BaseModel):
     user_input: list[File]
     expected_answer: list[ProgrammingTaskExpectedAnswer]
 
-    async def run(self, executor: Executor) -> TaskEvalResult[bool]:
+    async def run(self, executor: Executor) -> TaskEvalResult[list[Any]]:
         expected_answer_by_testcase = {
             testcase_id: list(group)
             for testcase_id, group in groupby(self.expected_answer, lambda x: x.testcase_id)
@@ -209,7 +185,6 @@ class ProgrammingTask(BaseModel):
                 )
             )
 
-        # TODO: check output and handle pending testcases
         return TaskEvalResult(
             submission_id=self.submission_id,
             status=TaskEvalStatus.SUCCESS,

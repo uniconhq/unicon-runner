@@ -8,14 +8,14 @@ from pydantic import BaseModel
 from unicon_runner.schemas import Request, Status
 
 
-class Result(BaseModel):
+class ExecutorResult(BaseModel):
     stdout: str
     stderr: str
     status: Status
 
 
 class Executor(ABC):
-    async def run_request(self, request: Request, request_id: str) -> Result:
+    async def run_request(self, request: Request, request_id: str) -> ExecutorResult:
         folder_path = self.set_up_request(request_id)
         result = await self._execute(
             request,
