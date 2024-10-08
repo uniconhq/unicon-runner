@@ -165,9 +165,8 @@ class Testcase(BaseModel):
 
             if step.type == StepType.PY_RUN_FUNCTION:
                 results = step_output
-            elif step.type == StepType.STRING_MATCH:
-                if not step_output:
-                    results.status = Status.WA
+            elif step.type == StepType.STRING_MATCH and step_output is False:
+                results.status = Status.WA
 
             if results.status != Status.OK:
                 return results
@@ -192,9 +191,7 @@ class ProgrammingTask(BaseModel):
     async def run(self, executor: Executor) -> TaskEvalResult[bool]:
         expected_answer_by_testcase = {
             testcase_id: list(group)
-            for testcase_id, group in groupby(
-                self.expected_answer, lambda x: x.testcase_id
-            )
+            for testcase_id, group in groupby(self.expected_answer, lambda x: x.testcase_id)
         }
 
         results = []

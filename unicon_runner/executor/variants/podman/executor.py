@@ -8,9 +8,7 @@ from unicon_runner.schemas import Request, Status
 class PodmanExecutor(Executor):
     """Uses podman + Dockerfile in template to execute code"""
 
-    async def _execute(
-        self, request: Request, request_id: str, folder_path: str
-    ) -> Result:
+    async def _execute(self, request: Request, request_id: str, folder_path: str) -> Result:
         folder_name = request_id
 
         # 1. Create files
