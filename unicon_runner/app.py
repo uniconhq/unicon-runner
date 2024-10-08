@@ -1,40 +1,62 @@
-from http import HTTPStatus
-import json
-from uuid import uuid4
-from fastapi import FastAPI, BackgroundTasks, Response
-from contextlib import asynccontextmanager
-from unicon_runner.executor.run import run_request
-from unicon_runner.util.redis_connection import redis_conn
-import os
+import asyncio
 
-from unicon_runner.schemas import Request
+import pika  # type: ignore
+from pika.exchange_type import ExchangeType  # type: ignore
+
+from unicon_runner.lib.constants import (
+    EXCHANGE_NAME,
+    RABBITMQ_URL,
+    RESULT_QUEUE_NAME,
+    RUNNER_TYPE,
+    TASK_QUEUE_NAME,
+)
+from unicon_runner.runner.runner import Runner, RunnerType
+from unicon_runner.runner.task.programming import ProgrammingTask
+
+connection = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
+
+# Set up MQ channels
+input_channel = connection.channel()
+input_channel.exchange_declare(exchange=EXCHANGE_NAME, exchange_type=ExchangeType.topic)
+input_channel.queue_declare(queue=TASK_QUEUE_NAME, durable=True)
+input_channel.queue_bind(exchange=EXCHANGE_NAME, queue=TASK_QUEUE_NAME, routing_key=TASK_QUEUE_NAME)
+
+input_channel.basic_qos(prefetch_count=1)
+
+output_channel = connection.channel()
+output_channel.exchange_declare(exchange=EXCHANGE_NAME, exchange_type=ExchangeType.topic)
+output_channel.queue_declare(queue=RESULT_QUEUE_NAME, durable=True)
+output_channel.queue_bind(
+    exchange=EXCHANGE_NAME, queue=RESULT_QUEUE_NAME, routing_key=RESULT_QUEUE_NAME
+)
+
+executor = Runner(RunnerType(RUNNER_TYPE))
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    if "temp" not in os.listdir():
-        os.mkdir("temp")
-    yield
+async def run_submission(programming_task: ProgrammingTask):
+    result = await executor.run_programming_task(programming_task=programming_task)
+
+    message = result.model_dump_json()
+    output_channel.basic_publish(exchange="", routing_key=RESULT_QUEUE_NAME, body=message)
+    print(f" [x] Sent {message}")
 
 
-app = FastAPI(lifespan=lifespan)
-
-
-@app.post("/submissions", status_code=HTTPStatus.ACCEPTED)
-async def run_submission(request: Request, background_tasks: BackgroundTasks):
-    request_id = str(uuid4()).replace("-", "")
-    background_tasks.add_task(run_request, request, request_id)
-    redis_conn.set(request_id, "")
-    print(redis_conn.exists(request_id))
-    return {"submission_id": request_id}
-
-
-@app.get("/submissions/{id}")
-async def get_submission(id, response: Response):
-    if not redis_conn.exists(id):
-        response.status_code = HTTPStatus.NOT_FOUND
+def retrieve_job(ch, method, properties, body):
+    try:
+        task = ProgrammingTask.model_validate_json(body)
+        print(task)
+    except Exception as e:
+        print(e)
         return
-    result = redis_conn.get(id)
-    if not result:
-        response.status_code = HTTPStatus.ACCEPTED
-    return json.loads(result)
+    asyncio.run(run_submission(task))
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+
+
+def main():
+    """Worker queue to listen for execute jobs"""
+    input_channel.basic_consume(queue=TASK_QUEUE_NAME, on_message_callback=retrieve_job)
+    input_channel.start_consuming()
+
+
+if __name__ == "__main__":
+    main()
