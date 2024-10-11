@@ -1,7 +1,8 @@
 import abc
+from collections import deque
 from enum import Enum
 from itertools import groupby
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, TypeVar
 from uuid import uuid4
 
 from pydantic import BaseModel
@@ -24,9 +25,6 @@ class StepType(str, Enum):
     INPUT = "INPUT_STEP"
     OUTPUT = "OUTPUT_STEP"
     CONSTANT = "CONSTANT_STEP"
-
-    # Not used anymore.
-    EXTRACT_PROGRAM_OUTPUT = "EXTRACT_PROGRAM_OUTPUT_STEP"
 
 
 StepInputType = TypeVar("StepInputType")
@@ -53,6 +51,15 @@ class Step(
     outputs: list[Socket]
 
     @abc.abstractmethod
+    async def run(
+        self,
+        inputs: dict,
+        environment: ProgrammingEnvironment,
+        executor: Executor,
+    ) -> dict:
+        pass
+
+    @abc.abstractmethod
     async def _run(
         self,
         user_input: StepInputType,
@@ -65,6 +72,9 @@ class Step(
 
 class ConstantStep(Step[Unused, Unused, dict]):
     values: dict
+
+    async def run(self, _: dict, *__unused_args):
+        return self.values
 
     async def _run(
         self,
@@ -79,6 +89,9 @@ class ConstantStep(Step[Unused, Unused, dict]):
 class InputStep(Step[Unused, Unused, dict]):
     values: dict
 
+    async def run(self, *__unused_args):
+        return self.values
+
     async def _run(
         self,
         user_input: StepInputType,
@@ -90,8 +103,8 @@ class InputStep(Step[Unused, Unused, dict]):
 
 
 class OutputStep(Step[dict, Unused, dict]):
-    def run(self, params: dict):
-        pass
+    async def run(self, params: dict, *__unused_args):
+        return params
 
     async def _run(
         self,
@@ -103,16 +116,15 @@ class OutputStep(Step[dict, Unused, dict]):
         pass
 
 
-class ExtractProgramOutputStep(Step[ExecutorResult, Unused, str]):
-    """Not used anymore."""
-
-    key: Literal["stdout", "stderr", "status"]
-
-    async def _run(self, user_input: ExecutorResult, *__unused_args) -> str:
-        return getattr(user_input, self.key)
-
-
 class StringMatchStep(Step[str, str, bool]):
+    async def run(self, params: dict, *__unused_args):
+        if len(params) != 2:
+            raise ValueError("Expected 2 keys for string match step.")
+
+        output_key = self.outputs[0].name
+
+        return {output_key: await self._run(*params.values())}
+
     async def _run(self, input: str, expected_answer: str, *__unused_args) -> bool:
         return input == expected_answer
 
@@ -126,11 +138,19 @@ class PyRunFunctionStep(Step[list[File], Unused, ExecutorResult]):
     file_name: str
     function_name: str
     params: Params | None = None
+    user_input: list[File] | None = []
 
-    async def run():
-        # set params
-        # _run()
-        pass
+    def set_user_input(self, user_input: list[File]):
+        self.user_input = user_input
+
+    async def run(
+        self,
+        inputs: dict,
+        environment: ProgrammingEnvironment,
+        executor: Executor,
+    ):
+        self.params = Params.model_validate(list(inputs.values())[0])
+        return (await self._run(self.user_input, [], environment, executor)).model_dump()
 
     async def _run(
         self,
@@ -146,8 +166,8 @@ class PyRunFunctionStep(Step[list[File], Unused, ExecutorResult]):
         if not any(f.file_name == self.file_name for f in user_input):
             raise ValueError(f"File {self.file_name} not found in input files")
 
-        func_args_kwargs = [stringify_arg(arg) for arg in self.arguments] + [
-            f"{k}={stringify_arg(v)}" for k, v in self.keyword_arguments.items()
+        func_args_kwargs = [stringify_arg(arg) for arg in self.params.arguments] + [
+            f"{k}={stringify_arg(v)}" for k, v in self.params.keyword_arguments.items()
         ]
         func_invocation = f"{self.function_name}({', '.join(func_args_kwargs)})"
         # TODO: Remove dependence on `print` and `stdout`
@@ -189,36 +209,92 @@ class Testcase(BaseModel):
         environment: ProgrammingEnvironment,
         executor: Executor,
     ):
-        expected_answer_by_step = {
+        # TODO: figure out what to do with this variable
+        expected_answer_by_step = {  # noqa: F841
             step_expected_answer.step_id: step_expected_answer.expected_answer
             for step_expected_answer in expected_answer
         }
 
-        # TEMP: Assume that steps are a linear sequence and run them in order
-        step_idx: int = 0
-        prev_step_output: Any = user_input
-
         results = ExecutorResult(status=Status.OK, stdout="", stderr="")
 
-        while step_idx < len(self.steps):
-            step = self.steps[step_idx]
+        # for lookup
+        step_map = {step.id: step for step in self.steps}
+        link_map = {
+            id: [link for link in self.links if link.from_node_id == id]
+            for id in set(link.from_node_id for link in self.links)
+        }
 
-            step_expected_answer = expected_answer_by_step.get(step.id)
-            step_output = await step.run(
-                prev_step_output, step_expected_answer, environment, executor
-            )
+        ready_queue = deque[tuple[Step, dict]]()
+        forming_map = {}
 
-            print(f"Step {step.id} [{step.type}] output: {step_output}")
+        # initialisation step: move all nodes with no inputs to ready queue
+        for step in self.steps:
+            if not step.inputs:
+                ready_queue.append((step, {}))
 
-            if step.type == StepType.PY_RUN_FUNCTION:
-                results = step_output
-            elif step.type == StepType.STRING_MATCH and step_output is False:
-                results.status = Status.WA
+        while True:
+            if not ready_queue:
+                raise ValueError("Ended without reaching output node.")
 
-            if results.status != Status.OK:
-                return results
-            prev_step_output = step_output
-            step_idx += 1
+            print(ready_queue)
+            current_step, inputs = ready_queue.popleft()
+            print(current_step.type, inputs)
+
+            if current_step.type == StepType.PY_RUN_FUNCTION:
+                current_step.set_user_input(user_input)
+
+            outputs = await current_step.run(inputs, environment, executor)
+
+            if current_step.type == StepType.OUTPUT:
+                break
+
+            # update forming map
+            for outgoing_link in link_map[current_step.id]:
+                outgoing_key = [
+                    output
+                    for output in current_step.outputs
+                    if output.id == outgoing_link.from_socket_id
+                ][0].name
+                value = outputs[outgoing_key]
+                print(value)
+
+                if not forming_map.get(outgoing_link.to_node_id):
+                    ingoing_step = step_map[outgoing_link.to_node_id]
+                    forming_map[outgoing_link.to_node_id] = (ingoing_step, {})
+
+                ingoing_step = step_map[outgoing_link.to_node_id]
+                ingoing_key = [
+                    input for input in ingoing_step.inputs if input.id == outgoing_link.to_socket_id
+                ][0].name
+
+                forming_map[outgoing_link.to_node_id][1][ingoing_key] = value
+
+            # move formed nodes to ready_queue
+            for id, (step, params) in list(forming_map.items()):
+                if len(step.inputs) == len(params):
+                    ready_queue.append((step, params))
+                    del forming_map[id]
+
+        return outputs
+        # while step_idx < len(self.steps):
+        #     step = self.steps[step_idx]
+
+        #     step_expected_answer = expected_answer_by_step.get(step.id)
+        #     step_output = await step.run(
+        #         prev_step_output, step_expected_answer, environment, executor
+        #     )
+
+        #     print(f"Step {step.id} [{step.type}] output: {step_output}")
+
+        #     if step.type == StepType.PY_RUN_FUNCTION:
+        #         results = step_output
+        #     elif step.type == StepType.STRING_MATCH and step_output is False:
+        #         results.status = Status.WA
+
+        #     if results.status != Status.OK:
+        #         return results
+        #     prev_step_output = step_output
+        #     step_idx += 1
 
         return results
 

@@ -24,7 +24,7 @@
           "values": {
             "params": {
               "arguments": [2, 1],
-              "keyword_arguments": []
+              "keyword_arguments": {}
             }
           }
         },
