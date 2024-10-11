@@ -59,31 +59,12 @@ class Step(
     ) -> dict:
         pass
 
-    @abc.abstractmethod
-    async def _run(
-        self,
-        user_input: StepInputType,
-        expected_answer: StepExpectedAnswer,
-        environment: ProgrammingEnvironment,
-        executor: Executor,
-    ) -> StepOutputType:
-        pass
-
 
 class ConstantStep(Step[Unused, Unused, dict]):
     values: dict
 
     async def run(self, _: dict, *__unused_args):
         return self.values
-
-    async def _run(
-        self,
-        user_input: StepInputType,
-        expected_answer: StepExpectedAnswer,
-        environment: ProgrammingEnvironment,
-        executor: Executor,
-    ) -> StepOutputType:
-        pass
 
 
 class InputStep(Step[Unused, Unused, dict]):
@@ -92,28 +73,10 @@ class InputStep(Step[Unused, Unused, dict]):
     async def run(self, *__unused_args):
         return self.values
 
-    async def _run(
-        self,
-        user_input: StepInputType,
-        expected_answer: StepExpectedAnswer,
-        environment: ProgrammingEnvironment,
-        executor: Executor,
-    ) -> StepOutputType:
-        pass
-
 
 class OutputStep(Step[dict, Unused, dict]):
     async def run(self, params: dict, *__unused_args):
         return params
-
-    async def _run(
-        self,
-        user_input: StepInputType,
-        expected_answer: StepExpectedAnswer,
-        environment: ProgrammingEnvironment,
-        executor: Executor,
-    ) -> StepOutputType:
-        pass
 
 
 class StringMatchStep(Step[str, str, bool]):
@@ -215,8 +178,6 @@ class Testcase(BaseModel):
             for step_expected_answer in expected_answer
         }
 
-        results = ExecutorResult(status=Status.OK, stdout="", stderr="")
-
         # for lookup
         step_map = {step.id: step for step in self.steps}
         link_map = {
@@ -276,27 +237,6 @@ class Testcase(BaseModel):
                     del forming_map[id]
 
         return outputs
-        # while step_idx < len(self.steps):
-        #     step = self.steps[step_idx]
-
-        #     step_expected_answer = expected_answer_by_step.get(step.id)
-        #     step_output = await step.run(
-        #         prev_step_output, step_expected_answer, environment, executor
-        #     )
-
-        #     print(f"Step {step.id} [{step.type}] output: {step_output}")
-
-        #     if step.type == StepType.PY_RUN_FUNCTION:
-        #         results = step_output
-        #     elif step.type == StepType.STRING_MATCH and step_output is False:
-        #         results.status = Status.WA
-
-        #     if results.status != Status.OK:
-        #         return results
-        #     prev_step_output = step_output
-        #     step_idx += 1
-
-        return results
 
 
 class TaskType(str, Enum):
