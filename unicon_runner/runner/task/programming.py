@@ -1,5 +1,6 @@
 import abc
 from collections import deque
+from dataclasses import dataclass
 from enum import Enum
 from itertools import groupby
 from typing import Any, Generic, TypeVar
@@ -13,7 +14,6 @@ from unicon_runner.schemas import (
     File,
     ProgrammingEnvironment,
     Request,
-    Status,
     TaskEvalResult,
     TaskEvalStatus,
 )
@@ -160,24 +160,15 @@ class Link(BaseModel):
     to_socket_id: int
 
 
-class Testcase(BaseModel):
-    id: int
+@dataclass
+class Graph:
     steps: list[Step]
     links: list[Link]
+    user_input: list[File]
+    environment: ProgrammingEnvironment
+    executor: Executor
 
-    async def run(
-        self,
-        user_input: list[File],
-        expected_answer: list[ProgrammingTaskExpectedAnswer],
-        environment: ProgrammingEnvironment,
-        executor: Executor,
-    ):
-        # TODO: figure out what to do with this variable
-        expected_answer_by_step = {  # noqa: F841
-            step_expected_answer.step_id: step_expected_answer.expected_answer
-            for step_expected_answer in expected_answer
-        }
-
+    async def run(self) -> dict:
         # for lookup
         step_map = {step.id: step for step in self.steps}
         link_map = {
@@ -197,14 +188,12 @@ class Testcase(BaseModel):
             if not ready_queue:
                 raise ValueError("Ended without reaching output node.")
 
-            print(ready_queue)
             current_step, inputs = ready_queue.popleft()
-            print(current_step.type, inputs)
 
             if current_step.type == StepType.PY_RUN_FUNCTION:
-                current_step.set_user_input(user_input)
+                current_step.set_user_input(self.user_input)
 
-            outputs = await current_step.run(inputs, environment, executor)
+            outputs = await current_step.run(inputs, self.environment, self.executor)
 
             if current_step.type == StepType.OUTPUT:
                 break
@@ -237,6 +226,28 @@ class Testcase(BaseModel):
                     del forming_map[id]
 
         return outputs
+
+
+class Testcase(BaseModel):
+    id: int
+    steps: list[Step]
+    links: list[Link]
+
+    async def run(
+        self,
+        user_input: list[File],
+        expected_answer: list[ProgrammingTaskExpectedAnswer],
+        environment: ProgrammingEnvironment,
+        executor: Executor,
+    ):
+        # TODO: figure out what to do with this variable
+        expected_answer_by_step = {  # noqa: F841
+            step_expected_answer.step_id: step_expected_answer.expected_answer
+            for step_expected_answer in expected_answer
+        }
+
+        graph = Graph(self.steps, self.links, user_input, environment, executor)
+        return await graph.run()
 
 
 class TaskType(str, Enum):
