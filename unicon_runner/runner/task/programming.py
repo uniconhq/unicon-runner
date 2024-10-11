@@ -20,8 +20,13 @@ from unicon_runner.schemas import (
 
 class StepType(str, Enum):
     PY_RUN_FUNCTION = "PY_RUN_FUNCTION_STEP"
-    EXTRACT_PROGRAM_OUTPUT = "EXTRACT_PROGRAM_OUTPUT_STEP"
     STRING_MATCH = "STRING_MATCH_STEP"
+    INPUT = "INPUT_STEP"
+    OUTPUT = "OUTPUT_STEP"
+    CONSTANT = "CONSTANT_STEP"
+
+    # Not used anymore.
+    EXTRACT_PROGRAM_OUTPUT = "EXTRACT_PROGRAM_OUTPUT_STEP"
 
 
 StepInputType = TypeVar("StepInputType")
@@ -29,6 +34,11 @@ StepExpectedAnswer = TypeVar("StepExpectedAnswer")
 StepOutputType = TypeVar("StepOutputType")
 
 type Unused = None
+
+
+class Socket(BaseModel):
+    id: int
+    name: str
 
 
 class Step(
@@ -39,9 +49,51 @@ class Step(
 ):
     id: int
     type: StepType
+    inputs: list[Socket]
+    outputs: list[Socket]
 
     @abc.abstractmethod
-    async def run(
+    async def _run(
+        self,
+        user_input: StepInputType,
+        expected_answer: StepExpectedAnswer,
+        environment: ProgrammingEnvironment,
+        executor: Executor,
+    ) -> StepOutputType:
+        pass
+
+
+class ConstantStep(Step[Unused, Unused, dict]):
+    values: dict
+
+    async def _run(
+        self,
+        user_input: StepInputType,
+        expected_answer: StepExpectedAnswer,
+        environment: ProgrammingEnvironment,
+        executor: Executor,
+    ) -> StepOutputType:
+        pass
+
+
+class InputStep(Step[Unused, Unused, dict]):
+    values: dict
+
+    async def _run(
+        self,
+        user_input: StepInputType,
+        expected_answer: StepExpectedAnswer,
+        environment: ProgrammingEnvironment,
+        executor: Executor,
+    ) -> StepOutputType:
+        pass
+
+
+class OutputStep(Step[dict, Unused, dict]):
+    def run(self, params: dict):
+        pass
+
+    async def _run(
         self,
         user_input: StepInputType,
         expected_answer: StepExpectedAnswer,
@@ -52,25 +104,35 @@ class Step(
 
 
 class ExtractProgramOutputStep(Step[ExecutorResult, Unused, str]):
+    """Not used anymore."""
+
     key: Literal["stdout", "stderr", "status"]
 
-    async def run(self, user_input: ExecutorResult, *__unused_args) -> str:
+    async def _run(self, user_input: ExecutorResult, *__unused_args) -> str:
         return getattr(user_input, self.key)
 
 
 class StringMatchStep(Step[str, str, bool]):
-    async def run(self, input: str, expected_answer: str, *__unused_args) -> bool:
-        print(repr(input), repr(expected_answer))
+    async def _run(self, input: str, expected_answer: str, *__unused_args) -> bool:
         return input == expected_answer
+
+
+class Params(BaseModel):
+    arguments: list[int | str]
+    keyword_arguments: dict[str, str]
 
 
 class PyRunFunctionStep(Step[list[File], Unused, ExecutorResult]):
     file_name: str
     function_name: str
-    arguments: list[int | str]
-    keyword_arguments: dict[str, str]
+    params: Params | None = None
 
-    async def run(
+    async def run():
+        # set params
+        # _run()
+        pass
+
+    async def _run(
         self,
         user_input: list[File],
         _: Unused,
@@ -107,9 +169,18 @@ class ProgrammingTaskExpectedAnswer(BaseModel):
     expected_answer: Any
 
 
+class Link(BaseModel):
+    id: int
+    from_node_id: int
+    from_socket_id: int
+    to_node_id: int
+    to_socket_id: int
+
+
 class Testcase(BaseModel):
     id: int
     steps: list[Step]
+    links: list[Link]
 
     async def run(
         self,

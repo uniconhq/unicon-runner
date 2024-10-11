@@ -7,7 +7,7 @@ from unicon_runner.lib.constants import RUNNER_TYPE
 from unicon_runner.runner.runner import Runner, RunnerType
 from unicon_runner.runner.task.programming import ProgrammingTask
 
-with open("unicon_runner/scripts/test.json") as f:
+with open("unicon_runner/scripts/test1.json") as f:
     EXAMPLE = f.read()
 
 executor = Runner(RunnerType(RUNNER_TYPE))

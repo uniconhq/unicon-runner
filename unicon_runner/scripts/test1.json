@@ -1,0 +1,129 @@
+{
+  "submission_id": "a87a046b-bfc4-47c2-b04d-c9526dd07db3",
+  "environment": {
+    "language": "PYTHON",
+    "options": { "version": "3.12" },
+    "time_limit": 10,
+    "memory_limit": 500
+  },
+  "templates": [
+    {
+      "file_name": "graph_search.py",
+      "content": "import queue\n\ndef mnc_graph_search(m, c):\n\traise NotImplememented()"
+    }
+  ],
+  "testcases": [
+    {
+      "id": 0,
+      "steps": [
+        {
+          "id": 1,
+          "type": "INPUT_STEP",
+          "inputs": [],
+          "outputs": [{ "id": 1, "name": "params" }],
+          "values": {
+            "params": {
+              "arguments": [2, 1],
+              "keyword_arguments": []
+            }
+          }
+        },
+        {
+          "id": 2,
+          "type": "PY_RUN_FUNCTION_STEP",
+          "inputs": [
+            {
+              "id": 1,
+              "name": "params"
+            }
+          ],
+          "outputs": [
+            { "id": 1, "name": "status" },
+            { "id": 2, "name": "stdout" },
+            { "id": 3, "name": "stderr" }
+          ],
+          "file_name": "graph_search.py",
+          "function_name": "mnc_graph_search"
+        },
+        {
+          "id": 3,
+          "type": "CONSTANT_STEP",
+          "inputs": [],
+          "outputs": [{ "id": 1, "name": "constant" }],
+          "values": {
+            "constant": "((2, 0), (1, 0), (1, 1))\n"
+          }
+        },
+        {
+          "id": 4,
+          "type": "STRING_MATCH_STEP",
+          "inputs": [
+            { "id": 1, "name": "input1" },
+            { "id": 2, "name": "input2" }
+          ],
+          "outputs": [{ "id": 1, "name": "result" }]
+        },
+        {
+          "id": 5,
+          "type": "OUTPUT_STEP",
+          "inputs": [
+            { "id": 1, "name": "stdout" },
+            { "id": 2, "name": "result" }
+          ],
+          "outputs": []
+        }
+      ],
+      "links": [
+        {
+          "id": 1,
+          "from_node_id": 1,
+          "from_socket_id": 1,
+          "to_node_id": 2,
+          "to_socket_id": 1
+        },
+        {
+          "id": 2,
+          "from_node_id": 2,
+          "from_socket_id": 2,
+          "to_node_id": 4,
+          "to_socket_id": 1
+        },
+        {
+          "id": 3,
+          "from_node_id": 2,
+          "from_socket_id": 2,
+          "to_node_id": 5,
+          "to_socket_id": 1
+        },
+        {
+          "id": 4,
+          "from_node_id": 3,
+          "from_socket_id": 1,
+          "to_node_id": 4,
+          "to_socket_id": 2
+        },
+        {
+          "id": 5,
+          "from_node_id": 4,
+          "from_socket_id": 1,
+          "to_node_id": 5,
+          "to_socket_id": 2
+        }
+      ]
+    }
+  ],
+  "user_input": [
+    {
+      "file_name": "graph_search.py",
+      "content": "import queue\n\n\ndef mnc_graph_search(m,c):\n    '''\n    Graph search requires to deal with the redundant path: cycle or loopy path.\n    Modify the above implemented tree search algorithm to accelerate your AI.\n    Parameters\n    ----------\n    m: no. of missionaries\n    c: no. of cannibals\n    Returns\n    ----------\n    Returns the solution to the problem as a tuple of steps. Each step is a tuple of two numbers x and y, indicating the number of missionaries and cannibals on the boat respectively as the boat moves from one side of the river to another. If there is no solution, return False.\n    '''\n    # State:\n    # (\n    #   no. missionaries on left side,\n    #   no. cannibals on left side,\n    #   is boat on left side,\n    #   actions\n    # )\n    initial_state = (0, 0, False, ())\n    def get_key_from_state(state):\n        # we can remove `actions` since it does not uniquely identify a state\n        return state[:3]\n    q = queue.Queue()\n    q.put(initial_state)\n    seen = set()\n    seen.add(initial_state)\n    while not q.empty():\n        l_m, l_c, is_boat_left, prev_actions = q.get()\n        r_m, r_c, is_boat_right = m - l_m, c - l_c, not is_boat_left\n        l_delta_multipler = -1 if is_boat_left else 1\n        r_delta_multipler = -1 if is_boat_right else 1\n        actions = ((2, 0), (1, 0), (1, 1), (0, 1), (0, 2))\n        for delta_m, delta_c in actions:\n            next_l_m, next_l_c = (\n                l_m + (delta_m * l_delta_multipler),\n                l_c + (delta_c * l_delta_multipler),\n            )\n            next_r_m, next_r_c = (\n                r_m + (delta_m * r_delta_multipler),\n                r_c + (delta_c * r_delta_multipler),\n            )\n            next_state = (\n                next_l_m,\n                next_l_c,\n                not is_boat_left,\n                prev_actions + ((delta_m, delta_c),),\n            )\n            next_key = get_key_from_state(next_state)\n            if next_key in seen:\n                # repeated state\n                continue\n            if next_state[:3] == (m, c, True):\n                # reached target state\n                return next_state[3]\n            if next_l_m > m or next_l_m < 0 or next_l_c > c or next_l_c < 0:\n                # check for representation invariant\n                continue\n            if (next_l_c > next_l_m and next_l_m > 0) or (\n                next_r_c > next_r_m and next_r_m > 0\n            ):\n                # check for invalid/lose state\n                continue\n            q.put(next_state)\n            seen.add(next_key)\n    return False"
+    }
+  ],
+  "expected_answer": [
+    {
+      "testcase_id": 0,
+      "step_id": 3,
+      "expected_answer": "((2, 0), (1, 0), (1, 1))\n"
+    }
+  ],
+  "executor_type": "podman"
+}
