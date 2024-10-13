@@ -1,6 +1,5 @@
 import abc
 from collections import deque
-from dataclasses import dataclass
 from enum import Enum
 from itertools import groupby
 from typing import Any, Generic, TypeVar
@@ -50,15 +49,6 @@ class Step(
     inputs: list[Socket]
     outputs: list[Socket]
 
-    @abc.abstractmethod
-    async def run(
-        self,
-        inputs: dict,
-        environment: ProgrammingEnvironment,
-        executor: Executor,
-    ) -> dict:
-        pass
-
     def get_comment_header(self):
         return f"# Step {self.id}: {self.type.value}"
 
@@ -69,9 +59,6 @@ class Step(
 
 class ConstantStep(Step[Unused, Unused, dict]):
     values: dict
-
-    async def run(self, _: dict, *__unused_args):
-        return self.values
 
     def get_code(self, *__unused_args):
         code = [self.get_comment_header()]
@@ -84,9 +71,6 @@ class ConstantStep(Step[Unused, Unused, dict]):
 class InputStep(Step[Unused, Unused, dict]):
     values: dict
 
-    async def run(self, *__unused_args):
-        return self.values
-
     def get_code(self, *__unused_args):
         code = [self.get_comment_header()]
         for output in self.outputs:
@@ -96,33 +80,19 @@ class InputStep(Step[Unused, Unused, dict]):
 
 
 class OutputStep(Step[dict, Unused, dict]):
-    async def run(self, params: dict, *__unused_args):
-        return params
-
     def get_code(self, inputs: dict):
-        code = [self.get_comment_header()]
+        code = [self.get_comment_header(), "import json"]
         result = (
             "{"
             + ", ".join((f'"{key}": {variable_name}' for key, variable_name in inputs.items()))
             + "}"
         )
-        print_statement = f"print({result})"
+        print_statement = f"print(json.dumps({result}))"
         code.append(print_statement)
         return "\n".join(code)
 
 
 class StringMatchStep(Step[str, str, bool]):
-    async def run(self, params: dict, *__unused_args):
-        if len(params) != 2:
-            raise ValueError("Expected 2 keys for string match step.")
-
-        output_key = self.outputs[0].name
-
-        return {output_key: await self._run(*params.values())}
-
-    async def _run(self, input: str, expected_answer: str, *__unused_args) -> bool:
-        return input == expected_answer
-
     def get_code(self, inputs: dict):
         output = self.outputs[0]
         output_variable = f"var_{self.id}_{output.id}"
@@ -146,45 +116,6 @@ class PyRunFunctionStep(Step[list[File], Unused, ExecutorResult]):
 
     def set_user_input(self, user_input: list[File]):
         self.user_input = user_input
-
-    async def run(
-        self,
-        inputs: dict,
-        environment: ProgrammingEnvironment,
-        executor: Executor,
-    ):
-        self.params = Params.model_validate(list(inputs.values())[0])
-        return (await self._run(self.user_input, [], environment, executor)).model_dump()
-
-    async def _run(
-        self,
-        user_input: list[File],
-        _: Unused,
-        environment: ProgrammingEnvironment,
-        executor: Executor,
-    ) -> ExecutorResult:
-        def stringify_arg(arg: int | str) -> str:
-            # Integers are passed as-is, strings are wrapped in double quotes
-            return str(arg) if isinstance(arg, int) else f'"{arg}"'
-
-        if not any(f.file_name == self.file_name for f in user_input):
-            raise ValueError(f"File {self.file_name} not found in input files")
-
-        func_args_kwargs = [stringify_arg(arg) for arg in self.params.arguments] + [
-            f"{k}={stringify_arg(v)}" for k, v in self.params.keyword_arguments.items()
-        ]
-        func_invocation = f"{self.function_name}({', '.join(func_args_kwargs)})"
-        # TODO: Remove dependence on `print` and `stdout`
-        assembled_code = f"from {self.file_name.split(".py")[0]} import {self.function_name}\n\nprint({func_invocation})"
-
-        return await executor.run_request(
-            request=Request(
-                files=user_input + [File(file_name="__run.py", content=assembled_code)],
-                environment=environment,
-                entrypoint="__run.py",
-            ),
-            request_id=str(uuid4()),
-        )
 
     def get_code(self, inputs: dict):
         # Precondition: set_user_input has been called
