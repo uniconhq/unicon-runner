@@ -119,9 +119,9 @@ class PyRunFunctionStep(Step[list[File], Unused, ExecutorResult]):
 
     def get_code(self, inputs: dict):
         # Precondition: set_user_input has been called
-        assert self.user_input != None
+        assert self.user_input is not None
 
-        if not any(f.file_name == self.file_name for f in self.user_input):
+        if not any([f.file_name == self.file_name for f in self.user_input]):
             raise ValueError(f"File {self.file_name} not found in input files")
 
         assert len(inputs) == 1
@@ -155,7 +155,7 @@ class Graph(BaseModel):
 
     async def run(
         self, user_input: list[File], environment: ProgrammingEnvironment, executor: Executor
-    ) -> dict:
+    ) -> ExecutorResult:
         # for lookup
         step_map = {step.id: step for step in self.steps}
         link_map = {
@@ -164,7 +164,7 @@ class Graph(BaseModel):
         }
 
         ready_queue = deque[tuple[Step, dict]]()
-        forming_map = {}
+        forming_map: dict[int, Any] = {}
 
         # initialisation step: move all nodes with no inputs to ready queue
         for step in self.steps:
@@ -180,6 +180,7 @@ class Graph(BaseModel):
             current_step, inputs = ready_queue.popleft()
 
             if current_step.type == StepType.PY_RUN_FUNCTION:
+                assert isinstance(current_step, PyRunFunctionStep)
                 current_step.set_user_input(user_input)
 
             script_part = current_step.get_code(inputs)
