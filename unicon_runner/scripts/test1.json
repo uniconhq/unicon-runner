@@ -37,11 +37,7 @@
               "name": "params"
             }
           ],
-          "outputs": [
-            { "id": 1, "name": "status" },
-            { "id": 2, "name": "stdout" },
-            { "id": 3, "name": "stderr" }
-          ],
+          "outputs": [{ "id": 1, "name": "result" }],
           "file_name": "graph_search.py",
           "function_name": "mnc_graph_search"
         },
@@ -84,14 +80,14 @@
         {
           "id": 2,
           "from_node_id": 2,
-          "from_socket_id": 2,
+          "from_socket_id": 1,
           "to_node_id": 4,
           "to_socket_id": 1
         },
         {
           "id": 3,
           "from_node_id": 2,
-          "from_socket_id": 2,
+          "from_socket_id": 1,
           "to_node_id": 5,
           "to_socket_id": 1
         },
