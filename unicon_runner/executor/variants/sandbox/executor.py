@@ -20,6 +20,17 @@ class SandboxExecutor(Executor):
     RUN_SCRIPT = "unicon_runner/executor/variants/sandbox/scripts/run.sh"
     CONTY = os.getenv("CONTY_PATH")
 
+    def set_up_request(self, request_id: str) -> str:
+        """
+        All executors will be given a temporary folder named after the request id to work with.
+        Returns path to this temporary folder.
+        """
+        folder_name = request_id
+        folder_path = os.path.join("/tmp", folder_name)
+        os.makedirs(folder_path)
+
+        return folder_path
+
     async def _execute(self, request: Request, request_id: str, folder_path: str) -> ExecutorResult:
         # 1. Copy the uv files
         code_folder_path = os.path.join(folder_path, self.CODE_FOLDER_NAME)
