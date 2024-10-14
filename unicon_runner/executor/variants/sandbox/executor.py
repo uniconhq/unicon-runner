@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shutil
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -30,6 +31,21 @@ class SandboxExecutor(Executor):
         os.makedirs(folder_path)
 
         return folder_path
+
+    # just adding these two functions too to test
+    async def run_request(self, request: Request, request_id: str) -> ExecutorResult:
+        folder_path = self.set_up_request(request_id)
+        result = await self._execute(
+            request,
+            request_id,
+            folder_path,
+        )
+        self.clean_up_folder(folder_path)
+        return result
+
+    def clean_up_folder(self, folder_path: str):
+        """Cleans up the temporary folder"""
+        shutil.rmtree(folder_path)
 
     async def _execute(self, request: Request, request_id: str, folder_path: str) -> ExecutorResult:
         # 1. Copy the uv files
