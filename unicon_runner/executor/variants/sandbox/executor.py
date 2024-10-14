@@ -11,6 +11,8 @@ from unicon_runner.schemas import Request, Status
 class SandboxExecutor(Executor):
     """Uses conty"""
 
+    on_slurm = True
+
     env = Environment(
         loader=FileSystemLoader("unicon_runner/executor/variants/unsafe/templates"),
         autoescape=select_autoescape(),
@@ -20,32 +22,6 @@ class SandboxExecutor(Executor):
     INSTALL_SCRIPT = "unicon_runner/executor/variants/sandbox/scripts/install.sh"
     RUN_SCRIPT = "unicon_runner/executor/variants/sandbox/scripts/run.sh"
     CONTY = os.getenv("CONTY_PATH")
-
-    def set_up_request(self, request_id: str) -> str:
-        """
-        All executors will be given a temporary folder named after the request id to work with.
-        Returns path to this temporary folder.
-        """
-        folder_name = request_id
-        folder_path = os.path.join("/tmp", folder_name)
-        os.makedirs(folder_path)
-
-        return folder_path
-
-    # just adding these two functions too to test
-    async def run_request(self, request: Request, request_id: str) -> ExecutorResult:
-        folder_path = self.set_up_request(request_id)
-        result = await self._execute(
-            request,
-            request_id,
-            folder_path,
-        )
-        self.clean_up_folder(folder_path)
-        return result
-
-    def clean_up_folder(self, folder_path: str):
-        """Cleans up the temporary folder"""
-        shutil.rmtree(folder_path)
 
     async def _execute(self, request: Request, request_id: str, folder_path: str) -> ExecutorResult:
         # 1. Copy the uv files
