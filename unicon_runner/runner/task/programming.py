@@ -24,6 +24,8 @@ class StepType(str, Enum):
     INPUT = "INPUT_STEP"
     OUTPUT = "OUTPUT_STEP"
     CONSTANT = "CONSTANT_STEP"
+    EXTRACT_PROGRAM_OUTPUT = "EXTRACT_PROGRAM_OUTPUT_STEP"
+    PARAMS_WITHOUT_KEYWORD_ARGS = "PARAMS_WITHOUT_KEYWORD_ARGS_STEP"
 
 
 StepInputType = TypeVar("StepInputType")
@@ -65,6 +67,33 @@ class ConstantStep(Step[Unused, Unused, dict]):
         for output in self.outputs:
             value = self.values[output.name]
             code.append(f"var_{self.id}_{output.id} = {value}")
+        return "\n".join(code)
+
+
+class ExtractProgramOutputStep(Step[Unused, Unused, dict]):
+    key: str
+
+    def get_code(self, inputs: dict):
+        input_variables = list(inputs.values())
+        assert len(input_variables) == 1
+        input_variable = input_variables[0]
+        code = [self.get_comment_header()]
+        assert len(self.outputs) == 1
+        output = self.outputs[0]
+        code.append(f"var_{self.id}_{output.id} = {input_variable}['{self.key}']")
+        return "\n".join(code)
+
+
+class ParamsWithoutKeywordArgsStep(Step[Unused, Unused, dict]):
+    def get_code(self, inputs: dict):
+        input_variables = list(inputs.values())
+        assert len(input_variables) == len(self.inputs)
+        code = [self.get_comment_header()]
+        assert len(self.outputs) == 1
+        output = self.outputs[0]
+        code.append(
+            f"var_{self.id}_{output.id} = {{'arguments': [{", ".join(input_variables)}], 'keyword_arguments': {{}}}}"
+        )
         return "\n".join(code)
 
 
