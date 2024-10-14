@@ -16,8 +16,8 @@ class SandboxExecutor(Executor):
     )
     pyproject_template = env.get_template("pyproject.toml.jinja")
     CODE_FOLDER_NAME = "src"
-    RUN_SCRIPT = "unicon_runner/executor/variants/sandbox/scripts/run.sh"
-    INSTALL_SCRIPT = "unicon_runner/executor/variants/sandbox/scripts/install.sh"
+    RUN_SCRIPT = "unicon_runner/executor/variants/sandbox/scripts/install.sh"
+    INSTALL_SCRIPT = "unicon_runner/executor/variants/sandbox/scripts/run.sh"
     CONTY = os.getenv("CONTY_PATH")
 
     async def _execute(self, request: Request, request_id: str, folder_path: str) -> ExecutorResult:
