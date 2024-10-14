@@ -32,6 +32,13 @@ class UnsafeExecutor(Executor):
             pyproject_file = self.pyproject_template.render()
             f.write(pyproject_file)
 
+        with open(os.path.join(code_folder_path, "__init__.py"), "w") as f:
+            f.write("")
+
+        with open(os.path.join(folder_path, "requirements.txt"), "w") as f:
+            if "requirements" in request.environment.options:
+                f.write(request.environment.options["requirements"])
+
         # 2. Cd into temp folder and run uv sync && uv run entry
         proc = await asyncio.create_subprocess_shell(
             f"./{self.RUN_SCRIPT} {folder_path} {self.CODE_FOLDER_NAME}/{request.entrypoint} {request.environment.memory_limit * 1024} {request.environment.time_limit}",

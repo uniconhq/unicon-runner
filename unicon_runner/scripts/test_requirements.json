@@ -1,0 +1,122 @@
+{
+  "submission_id": "a87a046b-bfc4-47c2-b04d-c9526dd07db3",
+  "environment": {
+    "language": "PYTHON",
+    "options": { "version": "3.12", "requirements": "pandas" },
+    "time_limit": 10,
+    "memory_limit": 500
+  },
+  "templates": [
+    {
+      "file_name": "graph_search.py",
+      "content": "import pandas\nd = {'col1': [1, 2], 'col2': [3, 4]}\ndf = pd.DataFrame(data=d)\nprint(df.head())"
+    }
+  ],
+  "testcases": [
+    {
+      "id": 0,
+      "steps": [
+        {
+          "id": 1,
+          "type": "PY_RUN_FUNCTION_STEP",
+          "file_name": "graph_search.py",
+          "function_name": "mnc_graph_search",
+          "arguments": [2, 1],
+          "keyword_arguments": {}
+        },
+        { "id": 2, "type": "EXTRACT_PROGRAM_OUTPUT_STEP", "key": "stdout" },
+        { "id": 3, "type": "STRING_MATCH_STEP" }
+      ]
+    },
+    {
+      "id": 1,
+      "steps": [
+        {
+          "id": 1,
+          "type": "PY_RUN_FUNCTION_STEP",
+          "file_name": "graph_search.py",
+          "function_name": "mnc_graph_search",
+          "arguments": [2, 2],
+          "keyword_arguments": {}
+        },
+        { "id": 2, "type": "EXTRACT_PROGRAM_OUTPUT_STEP", "key": "stdout" },
+        { "id": 3, "type": "STRING_MATCH_STEP" }
+      ]
+    },
+    {
+      "id": 2,
+      "steps": [
+        {
+          "id": 1,
+          "type": "PY_RUN_FUNCTION_STEP",
+          "file_name": "graph_search.py",
+          "function_name": "mnc_graph_search",
+          "arguments": [3, 3],
+          "keyword_arguments": {}
+        },
+        { "id": 2, "type": "EXTRACT_PROGRAM_OUTPUT_STEP", "key": "stdout" },
+        { "id": 3, "type": "STRING_MATCH_STEP" }
+      ]
+    },
+    {
+      "id": 3,
+      "steps": [
+        {
+          "id": 1,
+          "type": "PY_RUN_FUNCTION_STEP",
+          "file_name": "graph_search.py",
+          "function_name": "mnc_graph_search",
+          "arguments": [4, 4],
+          "keyword_arguments": {}
+        },
+        { "id": 2, "type": "EXTRACT_PROGRAM_OUTPUT_STEP", "key": "stdout" },
+        { "id": 3, "type": "STRING_MATCH_STEP" }
+      ]
+    },
+    {
+      "id": 4,
+      "steps": [
+        {
+          "id": 1,
+          "type": "PY_RUN_FUNCTION_STEP",
+          "file_name": "graph_search.py",
+          "function_name": "mnc_graph_search",
+          "arguments": [30, 20],
+          "keyword_arguments": {}
+        },
+        { "id": 2, "type": "EXTRACT_PROGRAM_OUTPUT_STEP", "key": "stdout" },
+        { "id": 3, "type": "STRING_MATCH_STEP" }
+      ]
+    }
+  ],
+  "user_input": [
+    {
+      "file_name": "graph_search.py",
+      "content": "import pandas as pd\nd = {'col1': [1, 2], 'col2': [3, 4]}\ndf = pd.DataFrame(data=d)\nprint(df.head())\nimport queue\n\n\ndef mnc_graph_search(m,c):\n    '''\n    Graph search requires to deal with the redundant path: cycle or loopy path.\n    Modify the above implemented tree search algorithm to accelerate your AI.\n    Parameters\n    ----------\n    m: no. of missionaries\n    c: no. of cannibals\n    Returns\n    ----------\n    Returns the solution to the problem as a tuple of steps. Each step is a tuple of two numbers x and y, indicating the number of missionaries and cannibals on the boat respectively as the boat moves from one side of the river to another. If there is no solution, return False.\n    '''\n    # State:\n    # (\n    #   no. missionaries on left side,\n    #   no. cannibals on left side,\n    #   is boat on left side,\n    #   actions\n    # )\n    initial_state = (0, 0, False, ())\n    def get_key_from_state(state):\n        # we can remove `actions` since it does not uniquely identify a state\n        return state[:3]\n    q = queue.Queue()\n    q.put(initial_state)\n    seen = set()\n    seen.add(initial_state)\n    while not q.empty():\n        l_m, l_c, is_boat_left, prev_actions = q.get()\n        r_m, r_c, is_boat_right = m - l_m, c - l_c, not is_boat_left\n        l_delta_multipler = -1 if is_boat_left else 1\n        r_delta_multipler = -1 if is_boat_right else 1\n        actions = ((2, 0), (1, 0), (1, 1), (0, 1), (0, 2))\n        for delta_m, delta_c in actions:\n            next_l_m, next_l_c = (\n                l_m + (delta_m * l_delta_multipler),\n                l_c + (delta_c * l_delta_multipler),\n            )\n            next_r_m, next_r_c = (\n                r_m + (delta_m * r_delta_multipler),\n                r_c + (delta_c * r_delta_multipler),\n            )\n            next_state = (\n                next_l_m,\n                next_l_c,\n                not is_boat_left,\n                prev_actions + ((delta_m, delta_c),),\n            )\n            next_key = get_key_from_state(next_state)\n            if next_key in seen:\n                # repeated state\n                continue\n            if next_state[:3] == (m, c, True):\n                # reached target state\n                return next_state[3]\n            if next_l_m > m or next_l_m < 0 or next_l_c > c or next_l_c < 0:\n                # check for representation invariant\n                continue\n            if (next_l_c > next_l_m and next_l_m > 0) or (\n                next_r_c > next_r_m and next_r_m > 0\n            ):\n                # check for invalid/lose state\n                continue\n            q.put(next_state)\n            seen.add(next_key)\n    return False"
+    }
+  ],
+  "expected_answer": [
+    {
+      "testcase_id": 0,
+      "step_id": 3,
+      "expected_answer": "((2, 0), (1, 0), (1, 1))\n"
+    },
+    {
+      "testcase_id": 1,
+      "step_id": 3,
+      "expected_answer": "((1, 1), (1, 0), (2, 0), (1, 0), (1, 1))\n"
+    },
+    {
+      "testcase_id": 2,
+      "step_id": 3,
+      "expected_answer": "((1, 1), (1, 0), (0, 2), (0, 1), (2, 0), (1, 1), (2, 0), (0, 1), (0, 2), (1, 0), (1, 1))\n"
+    },
+    { "testcase_id": 3, "step_id": 3, "expected_answer": "False\n" },
+    {
+      "testcase_id": 4,
+      "step_id": 3,
+      "expected_answer": "((2, 0), (1, 0), (2, 0), (1, 0), (2, 0), (1, 0), (2, 0), (1, 0), (2, 0), (1, 0), (2, 0), (1, 0), (2, 0), (1, 0), (2, 0), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (1, 1), (1, 0), (2, 0), (1, 0), (2, 0), (1, 0), (1, 1))\n"
+    }
+  ],
+  "executor_type": "podman"
+}
