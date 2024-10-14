@@ -1,3 +1,5 @@
+#!/bin/bash
+
 cd $1
 ulimit -v $3
 uv sync -q
