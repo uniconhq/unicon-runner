@@ -53,7 +53,7 @@ class Step(CustomBaseModel, GraphNode, abc.ABC, polymorphic=True):
     id: int
     type: StepType
 
-    subgraph: Graph["Step"] | None = None
+    subgraph: "StepGraph" | None = None
 
     def get_comment_header(self):
         return f"# Step {self.id}: {self.type.value}"
@@ -276,7 +276,6 @@ class BreakingConditionStep(Step):
 
 
 class LoopStep(Step):
-    subgraph: StepGraph
     breaking_condition: BreakingConditionStep
     user_input: list[File] | None = None
 
@@ -285,6 +284,7 @@ class LoopStep(Step):
 
     def get_code(self, inputs: dict):
         assert self.user_input is not None
+        assert self.subgraph is not None
 
         code = [self.get_comment_header()]
 
