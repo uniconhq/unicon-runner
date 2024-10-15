@@ -1,0 +1,201 @@
+{
+  "submission_id": "a87a046b-bfc4-47c2-b04d-c9526dd07db3",
+  "environment": {
+    "language": "PYTHON",
+    "options": { "version": "3.12" },
+    "time_limit": 10,
+    "memory_limit": 500
+  },
+  "templates": [
+    {
+      "file_name": "graph_search.py",
+      "content": "import queue\n\ndef mnc_graph_search(m, c):\n\traise NotImplememented()"
+    }
+  ],
+  "testcases": [
+    {
+      "id": 0,
+      "nodes": [
+        {
+          "id": 1,
+          "type": "INPUT_STEP",
+          "inputs": [],
+          "outputs": [{ "id": 1, "name": "state" }],
+          "values": {
+            "state": {
+              "i": 0,
+              "x": 0
+            }
+          }
+        },
+        {
+          "id": 2,
+          "type": "LOOP_STEP",
+          "inputs": [
+            {
+              "id": 1,
+              "name": "state"
+            }
+          ],
+          "outputs": [{ "id": 1, "name": "state" }],
+          "breaking_condition": {
+            "id": 100,
+            "type": "BREAKING_CONDITION_STEP",
+            "inputs": [{ "id": 1, "name": "state" }],
+            "outputs": [],
+            "function_name": "breaker",
+            "function_code": "def breaker(state):\n\treturn state['i'] == 5"
+          },
+          "subgraph": {
+            "nodes": [
+              {
+                "id": 3,
+                "type": "SUBGRAPH_INIT_STEP",
+                "inputs": [],
+                "outputs": [
+                  {
+                    "id": 1,
+                    "name": "state"
+                  }
+                ]
+              },
+              {
+                "id": 4,
+                "type": "PARAMS_WITHOUT_KEYWORD_ARGS_STEP",
+                "inputs": [
+                  {
+                    "id": 1,
+                    "name": "state"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "id": 1,
+                    "name": "params"
+                  }
+                ]
+              },
+              {
+                "id": 5,
+                "type": "PY_RUN_FUNCTION_STEP",
+                "inputs": [
+                  {
+                    "id": 1,
+                    "name": "state"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "id": 1,
+                    "name": "state"
+                  }
+                ],
+                "file_name": "add.py",
+                "function_name": "add"
+              }
+            ],
+            "edges": [
+              {
+                "id": 2,
+                "from_node_id": 3,
+                "from_socket_id": 1,
+                "to_node_id": 4,
+                "to_socket_id": 1
+              },
+              {
+                "id": 3,
+                "from_node_id": 4,
+                "from_socket_id": 1,
+                "to_node_id": 5,
+                "to_socket_id": 1
+              },
+              {
+                "id": 4,
+                "from_node_id": 4,
+                "from_socket_id": 1,
+                "to_node_id": 5,
+                "to_socket_id": 1
+              },
+              {
+                "id": 5,
+                "from_node_id": 5,
+                "from_socket_id": 1,
+                "to_node_id": 6,
+                "to_socket_id": 1
+              }
+            ]
+          }
+        },
+        {
+          "id": 7,
+          "type": "EXTRACT_PROGRAM_OUTPUT_STEP",
+          "key": "x",
+          "inputs": [
+            {
+              "id": 1,
+              "name": "state"
+            }
+          ],
+          "outputs": [
+            {
+              "id": 1,
+              "name": "x"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "type": "OUTPUT_STEP",
+          "inputs": [
+            {
+              "id": 1,
+              "name": "x"
+            }
+          ],
+          "outputs": [
+            {
+              "id": 1,
+              "name": "x"
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "id": 1,
+          "from_node_id": 1,
+          "from_socket_id": 1,
+          "to_node_id": 2,
+          "to_socket_id": 1
+        },
+        {
+          "id": 2,
+          "from_node_id": 2,
+          "from_socket_id": 1,
+          "to_node_id": 7,
+          "to_socket_id": 1
+        },
+        {
+          "id": 3,
+          "from_node_id": 7,
+          "from_socket_id": 1,
+          "to_node_id": 8,
+          "to_socket_id": 1
+        }
+      ]
+    }
+  ],
+  "user_input": [
+    {
+      "file_name": "add.py",
+      "content": "def add(state):\n\treturn {'i': state['i'] + 1, 'x': state['x'] + 4}"
+    }
+  ],
+  "expected_answer": [
+    {
+      "testcase_id": 0,
+      "step_id": 3,
+      "expected_answer": "((2, 0), (1, 0), (1, 1))\n"
+    }
+  ]
+}

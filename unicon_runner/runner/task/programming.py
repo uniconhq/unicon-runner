@@ -11,7 +11,6 @@ from pydantic import BaseModel
 from unicon_runner.executor.base import Executor
 from unicon_runner.lib.common import CustomBaseModel
 from unicon_runner.lib.graph import Graph, GraphEdge, GraphNode
-from unicon_runner.runner.runner import RunnerType
 from unicon_runner.schemas import (
     File,
     ProgrammingEnvironment,
@@ -31,6 +30,7 @@ class StepType(str, Enum):
     PARAMS_WITHOUT_KEYWORD_ARGS = "PARAMS_WITHOUT_KEYWORD_ARGS_STEP"
     SUBGRAPH_INIT = "SUBGRAPH_INIT_STEP"
     BREAKING_CONDITION = "BREAKING_CONDITION_STEP"
+    LOOP_STEP = "LOOP_STEP"
 
 
 StepInputType = TypeVar("StepInputType")
@@ -85,7 +85,7 @@ class StepGraph(Graph[Step]):
             # As such, all we need to do is to pass in the correct variables to the next step
 
             # TEMP: Handle user input for PyRunFunctionStep
-            if isinstance(step, PyRunFunctionStep):
+            if isinstance(step, PyRunFunctionStep | LoopStep):
                 step.set_user_input(user_input)
 
             input_variables: dict[str, Any] = {}
@@ -268,7 +268,7 @@ class BreakingConditionStep(Step):
 
         input_variables = list(inputs.values())
         assert len(input_variables) == 1
-        state_variable = f"var_{self.id}_state"
+        state_variable = input_variables[0]
 
         code.append(self.function_code)
         code.append(f"if {self.function_name}({state_variable}):\n\tbreak")
@@ -298,7 +298,9 @@ class LoopStep(Step):
         code.append("while True:")
 
         # call breaking condition
-        code.append(self.breaking_condition.get_code({"state": state_variable}))
+        code.append(
+            self.breaking_condition.get_code({"state": state_variable}).replace("\n", "\n\t")
+        )
 
         # pass in the subgraph
         ## first pass state_variable to loopinit node
@@ -310,14 +312,11 @@ class LoopStep(Step):
         subgraph_code = self.subgraph.assemble_program(self.user_input)
 
         ## indent subgraph code
-        subgraph_code.replace("\n", "\n\t")
+        subgraph_code = subgraph_code.replace("\n", "\n\t")
 
         # TODO: find output variable of output step
-        subgraph_output_steps = [
-            step for step in self.subgraph.nodes if step.type == StepType.OUTPUT
-        ]
-        assert len(subgraph_output_steps) == 1
-        subgraph_output_step = subgraph_output_steps[0]
+
+        subgraph_output_step = self.subgraph.nodes[-1]
 
         subgraph_output_variable = f"var_{subgraph_output_step.outputs[0].id}_1"
 
@@ -325,6 +324,7 @@ class LoopStep(Step):
         subgraph_code += f"\n\t{state_variable} = {subgraph_output_variable}"
 
         code.append(subgraph_code)
+        code.append(f"var_{self.id}_1 = {state_variable}")
         return "\n".join(code)
 
 
@@ -358,7 +358,6 @@ class Testcase(StepGraph):
 class ProgrammingTask(BaseModel):
     submission_id: str
     environment: ProgrammingEnvironment
-    executor_type: RunnerType | None = None
 
     templates: list[File]
     testcases: list[Testcase]
