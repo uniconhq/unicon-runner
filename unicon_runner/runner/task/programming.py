@@ -3,7 +3,7 @@ from collections import defaultdict
 from enum import Enum
 from functools import cached_property
 from itertools import groupby
-from typing import Any, TypeVar
+from typing import Any, Optional, TypeVar
 from uuid import uuid4
 
 from pydantic import BaseModel
@@ -53,7 +53,7 @@ class Step(CustomBaseModel, GraphNode, abc.ABC, polymorphic=True):
     id: int
     type: StepType
 
-    subgraph: "StepGraph" | None = None
+    subgraph: Optional["StepGraph"] = None
 
     def get_comment_header(self):
         return f"# Step {self.id}: {self.type.value}"
