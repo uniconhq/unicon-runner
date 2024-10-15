@@ -271,7 +271,7 @@ class SubgraphInitStep(Step):
     def set_state_variable(self, state_variable: str):
         self.state_variable = state_variable
 
-    def get_code(self):
+    def get_code(self, *__unused_args):
         assert self.state_variable is not None
         assert len(self.outputs) == 1
 
@@ -290,8 +290,19 @@ class BreakingConditionStep(Step):
         break
     """
 
-    # TODO: implement
-    pass
+    function_name: str
+    function_code: str
+
+    def get_code(self, inputs: dict):
+        code = [self.get_comment_header()]
+
+        input_variables = list(inputs.values())
+        assert len(input_variables) == 1
+        state_variable = f"var_{self.id}_state"
+
+        code.append(self.function_code)
+        code.append(f"if {self.function_name}({state_variable}):\n\tbreak")
+        return "\n".join(code)
 
 
 class LoopStep(Step):
@@ -342,6 +353,9 @@ class LoopStep(Step):
 
         # set state to this variable
         subgraph_code.append(f"\t{state_variable} = {subgraph_output_variable}")
+
+        code.append(subgraph_code)
+        return "\n".join(code)
 
 
 class Testcase(BaseModel):
