@@ -268,7 +268,7 @@ class SubgraphInitStep(Step):
     state_variable: str | None = None
 
     def set_state_variable(self, state_variable: str):
-        self.state_varaible = state_variable
+        self.state_variable = state_variable
 
     def get_code(self):
         assert self.state_variable is not None
@@ -276,7 +276,7 @@ class SubgraphInitStep(Step):
 
         output = self.outputs[0]
         output_variable = f"var_{self.id}_{output.id}"
-        return self.get_comment_header() + "\n" + f"{output_variable} = {self.state_varaible}"
+        return self.get_comment_header() + "\n" + f"{output_variable} = {self.state_variable}"
 
 
 class BreakingConditionStep(Step):
