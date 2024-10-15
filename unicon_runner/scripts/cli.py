@@ -3,7 +3,7 @@
 import asyncio
 import json
 
-from unicon_runner.lib.constants import RUNNER_TYPE
+from unicon_runner.constants import RUNNER_TYPE
 from unicon_runner.runner.runner import Runner, RunnerType
 from unicon_runner.runner.task.programming import ProgrammingTask
 

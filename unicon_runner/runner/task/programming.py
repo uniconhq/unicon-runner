@@ -7,8 +7,9 @@ from uuid import uuid4
 
 from pydantic import BaseModel
 
-from unicon_runner.executor.variants.base import Executor, ExecutorResult
+from unicon_runner.executor.base import Executor, ExecutorResult
 from unicon_runner.lib.common import CustomBaseModel
+from unicon_runner.runner.runner import RunnerType
 from unicon_runner.schemas import (
     File,
     ProgrammingEnvironment,
@@ -404,13 +405,11 @@ class Testcase(BaseModel):
         )
 
 
-class TaskType(str, Enum):
-    PROGRAMMING = "PROGRAMMING_TASK"
-
-
 class ProgrammingTask(BaseModel):
     submission_id: str
     environment: ProgrammingEnvironment
+    executor_type: RunnerType | None = None
+
     templates: list[File]
     testcases: list[Testcase]
     user_input: list[File]

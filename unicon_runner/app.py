@@ -3,7 +3,7 @@ import asyncio
 import pika  # type: ignore
 from pika.exchange_type import ExchangeType  # type: ignore
 
-from unicon_runner.lib.constants import (
+from unicon_runner.constants import (
     EXCHANGE_NAME,
     RABBITMQ_URL,
     RESULT_QUEUE_NAME,
@@ -30,10 +30,9 @@ output_channel.queue_bind(
     exchange=EXCHANGE_NAME, queue=RESULT_QUEUE_NAME, routing_key=RESULT_QUEUE_NAME
 )
 
-executor = Runner(RunnerType(RUNNER_TYPE))
-
 
 async def run_submission(programming_task: ProgrammingTask):
+    executor = Runner(programming_task.executor_type or RunnerType(RUNNER_TYPE))
     result = await executor.run_programming_task(programming_task=programming_task)
 
     message = result.model_dump_json()
