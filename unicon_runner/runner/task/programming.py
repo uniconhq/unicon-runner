@@ -317,8 +317,7 @@ class LoopStep(Step):
         # TODO: find output variable of output step
 
         subgraph_output_step = self.subgraph.nodes[-1]
-
-        subgraph_output_variable = f"var_{subgraph_output_step.outputs[0].id}_1"
+        subgraph_output_variable = f"var_{subgraph_output_step.id}_1"
 
         # set state to this variable
         subgraph_code += f"\n\t{state_variable} = {subgraph_output_variable}"
