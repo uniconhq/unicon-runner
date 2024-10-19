@@ -1,6 +1,5 @@
 import asyncio
 import os
-import shutil
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -22,6 +21,8 @@ class SandboxExecutor(Executor):
     INSTALL_SCRIPT = "unicon_runner/executor/variants/sandbox/scripts/install.sh"
     RUN_SCRIPT = "unicon_runner/executor/variants/sandbox/scripts/run.sh"
     CONTY = os.getenv("CONTY_PATH")
+
+    semaphore = asyncio.Semaphore(2)
 
     async def _execute(self, request: Request, request_id: str, folder_path: str) -> ExecutorResult:
         # 1. Copy the uv files
@@ -45,18 +46,28 @@ class SandboxExecutor(Executor):
 
         # 2. Cd into temp folder and run uv sync && uv run entry
         proc = await asyncio.create_subprocess_shell(
-            f"UV_CONCURRENT_INSTALLS=1 {self.INSTALL_SCRIPT} {folder_path} && SANDBOX=1 SANDBOX_LEVEL=1 QUIET_MODE=1 UV_CONCURRENT_INSTALLS=1 {self.CONTY} "
-            f"--bind {os.path.abspath(folder_path)} {folder_path} "
-            f"--ro-bind {os.path.abspath(self.RUN_SCRIPT)} ~/{self.RUN_SCRIPT} "
-            # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
-            # We are using `uv` as the environment manager and program runner
-            f"--ro-bind ~/.cargo ~/.cargo "
-            f"./{self.RUN_SCRIPT} {folder_path} {self.CODE_FOLDER_NAME}/{request.entrypoint} {request.environment.memory_limit * 1024} {request.environment.time_limit}",
+            f"UV_CONCURRENT_INSTALLS=1 {self.INSTALL_SCRIPT} {folder_path}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
+        await proc.wait()
 
-        stdout, stderr = await proc.communicate()
+        async with self.semaphore:
+            proc = await asyncio.create_subprocess_shell(
+                f"SANDBOX=1 SANDBOX_LEVEL=1 QUIET_MODE=1 UV_CONCURRENT_INSTALLS=1 {self.CONTY} "
+                # proc = await asyncio.create_subprocess_shell(
+                #     f"UV_CONCURRENT_INSTALLS=1 {self.INSTALL_SCRIPT} {folder_path} && SANDBOX=1 SANDBOX_LEVEL=1 QUIET_MODE=1 UV_CONCURRENT_INSTALLS=1 {self.CONTY} "
+                f"--bind {os.path.abspath(folder_path)} {folder_path} "
+                f"--ro-bind {os.path.abspath(self.RUN_SCRIPT)} ~/{self.RUN_SCRIPT} "
+                # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
+                # We are using `uv` as the environment manager and program runner
+                f"--ro-bind ~/.cargo ~/.cargo "
+                f"./{self.RUN_SCRIPT} {folder_path} {self.CODE_FOLDER_NAME}/{request.entrypoint} {request.environment.memory_limit * 1024} {request.environment.time_limit}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            stdout, stderr = await proc.communicate()
 
         match proc.returncode:
             case 137:
