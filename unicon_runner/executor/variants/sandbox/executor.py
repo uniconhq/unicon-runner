@@ -22,7 +22,7 @@ class SandboxExecutor(Executor):
     RUN_SCRIPT = "unicon_runner/executor/variants/sandbox/scripts/run.sh"
     CONTY = os.getenv("CONTY_PATH")
 
-    semaphore = asyncio.Semaphore(2)
+    lock = asyncio.Lock()
 
     async def _execute(self, request: Request, request_id: str, folder_path: str) -> ExecutorResult:
         # 1. Copy the uv files
@@ -52,7 +52,7 @@ class SandboxExecutor(Executor):
         )
         await proc.wait()
 
-        async with self.semaphore:
+        async with self.lock:
             proc = await asyncio.create_subprocess_shell(
                 f"SANDBOX=1 SANDBOX_LEVEL=1 QUIET_MODE=1 UV_CONCURRENT_INSTALLS=1 {self.CONTY} "
                 # proc = await asyncio.create_subprocess_shell(
