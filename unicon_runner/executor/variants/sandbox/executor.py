@@ -22,6 +22,7 @@ class SandboxExecutor(Executor):
     RUN_SCRIPT = "unicon_runner/executor/variants/sandbox/scripts/run.sh"
     CONTY = os.getenv("CONTY_PATH")
 
+    # Mounting sometimes fails if we try to spawn multiple sandboxes on xlog.
     lock = asyncio.Lock()
 
     async def _execute(self, request: Request, request_id: str, folder_path: str) -> ExecutorResult:
