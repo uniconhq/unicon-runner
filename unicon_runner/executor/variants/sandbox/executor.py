@@ -42,8 +42,8 @@ class SandboxExecutor(Executor):
             f.write("")
 
         with open(os.path.join(folder_path, "requirements.txt"), "w") as f:
-            if "requirements" in request.environment.options:
-                f.write(request.environment.options["requirements"])
+            if "requirements" in request.environment.extra_options:
+                f.write(request.environment.extra_options["requirements"])
 
         # 2. Cd into temp folder and run uv sync && uv run entry
         proc = await asyncio.create_subprocess_shell(

@@ -1,12 +1,13 @@
 import asyncio
 import uuid
 from enum import Enum
-from typing import Any
+from typing import Any, Self
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from unicon_runner.executor.variants.base import Executor
 from unicon_runner.schemas import (
+    File,
     ProgrammingEnvironment,
     Request,
     TaskEvalResult,
@@ -14,20 +15,29 @@ from unicon_runner.schemas import (
 )
 
 
-class TaskType(str, Enum):
-    PROGRAMMING = "PROGRAMMING_TASK"
+class Program(BaseModel):
+    """Equivalent to RunnerPackage in unicon_backend"""
+
+    entrypoint: str
+    files: list[File]
+
+    @model_validator(mode="after")
+    def check_entrypoint_exists_in_files(self) -> Self:
+        if not any(file.file_name == self.entrypoint for file in self.files):
+            raise ValueError(f"Entrypoint {self.entrypoint} not found in RunnerPackage files")
+        return self
 
 
-class ProgrammingTask(BaseModel):
+class Programs(BaseModel):
     submission_id: str
     environment: ProgrammingEnvironment
-    programs: list[Request]
+    programs: list[Program]
 
     async def run(self, executor: Executor) -> TaskEvalResult[list[Any]]:
         results_with_index: dict[int, any] = {}
         async with asyncio.TaskGroup() as tg:
-            for index, request in enumerate(self.request):
-                tg.create_task(self.run(executor, request, index, results_with_index))
+            for index, request in enumerate(self.programs):
+                tg.create_task(self.run_program(executor, request, index, results_with_index))
 
         results = [results_with_index[i] for i in range(len(results_with_index))]
 
@@ -37,11 +47,12 @@ class ProgrammingTask(BaseModel):
             result=results,
         )
 
-    async def run_testcase(
+    async def run_program(
         self,
         executor: Executor,
-        request: Request,
+        program: Program,
         index: int,
         results: dict,
     ):
-        results[index] = await executor.run_request(request, str(uuid()))
+        request = Request(**program.model_dump(), environment=self.environment)
+        results[index] = await executor.run_request(request, str(uuid.uuid4()))

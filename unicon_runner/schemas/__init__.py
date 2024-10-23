@@ -23,9 +23,10 @@ class ProgrammingLanguage(str, Enum):
 
 class ProgrammingEnvironment(BaseModel):
     language: ProgrammingLanguage
-    options: dict[str, str] | None
     time_limit: int  # in seconds
     memory_limit: int  # in MB
+
+    extra_options: dict[str, str] | None
 
 
 TaskUserInput = TypeVar("TaskUserInput")
