@@ -1,4 +1,5 @@
 import abc
+import asyncio
 from enum import Enum
 from itertools import groupby
 from typing import Any, Generic, Literal, TypeVar
@@ -170,23 +171,38 @@ class ProgrammingTask(BaseModel):
             for testcase_id, group in groupby(self.expected_answer, lambda x: x.testcase_id)
         }
 
-        results = []
-        for testcase in self.testcases:
-            testcase_expected_answer = expected_answer_by_testcase.get(testcase.id)
-            if not testcase_expected_answer:
-                print(f"WARN: Testcase {testcase.id} has no expected answer")
-                continue
-            results.append(
-                await testcase.run(
-                    self.user_input,
-                    testcase_expected_answer,
-                    self.environment,
-                    executor,
+        results_with_index: dict[int, any] = {}
+        async with asyncio.TaskGroup() as tg:
+            for index, testcase in enumerate(self.testcases):
+                testcase_expected_answer = expected_answer_by_testcase.get(testcase.id)
+                if not testcase_expected_answer:
+                    print(f"WARN: Testcase {testcase.id} has no expected answer")
+                    continue
+                tg.create_task(
+                    self.run_testcase(
+                        executor, testcase, testcase_expected_answer, index, results_with_index
+                    )
                 )
-            )
+
+        results = [results_with_index[i] for i in range(len(results_with_index))]
 
         return TaskEvalResult(
             submission_id=self.submission_id,
             status=TaskEvalStatus.SUCCESS,
             result=results,
+        )
+
+    async def run_testcase(
+        self,
+        executor: Executor,
+        testcase: Testcase,
+        testcase_expected_answer: ProgrammingTaskExpectedAnswer,
+        index: int,
+        results: dict,
+    ):
+        results[index] = await testcase.run(
+            self.user_input,
+            testcase_expected_answer,
+            self.environment,
+            executor,
         )

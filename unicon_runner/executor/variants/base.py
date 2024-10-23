@@ -1,6 +1,5 @@
 import os
 import shutil
-import time
 from abc import ABC, abstractmethod
 
 from pydantic import BaseModel
@@ -15,6 +14,8 @@ class ExecutorResult(BaseModel):
 
 
 class Executor(ABC):
+    on_slurm = False
+
     async def run_request(self, request: Request, request_id: str) -> ExecutorResult:
         folder_path = self.set_up_request(request_id)
         result = await self._execute(
@@ -31,14 +32,14 @@ class Executor(ABC):
         Returns path to this temporary folder.
         """
         folder_name = request_id
-        folder_path = os.path.join("temp", folder_name)
+        folder_path = os.path.join("/tmp" if self.on_slurm else "temp", folder_name)
         os.makedirs(folder_path)
 
         return folder_path
 
     def clean_up_folder(self, folder_path: str):
         """Cleans up the temporary folder"""
-        time.sleep(5)
+        # time.sleep(5)
         shutil.rmtree(folder_path)
 
     @abstractmethod
