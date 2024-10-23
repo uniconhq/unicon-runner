@@ -56,8 +56,6 @@ class SandboxExecutor(Executor):
         async with self.lock:
             proc = await asyncio.create_subprocess_shell(
                 f"SANDBOX=1 SANDBOX_LEVEL=1 QUIET_MODE=1 UV_CONCURRENT_INSTALLS=1 {self.CONTY} "
-                # proc = await asyncio.create_subprocess_shell(
-                #     f"UV_CONCURRENT_INSTALLS=1 {self.INSTALL_SCRIPT} {folder_path} && SANDBOX=1 SANDBOX_LEVEL=1 QUIET_MODE=1 UV_CONCURRENT_INSTALLS=1 {self.CONTY} "
                 f"--bind {os.path.abspath(folder_path)} {folder_path} "
                 f"--ro-bind {os.path.abspath(self.RUN_SCRIPT)} ~/{self.RUN_SCRIPT} "
                 # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
