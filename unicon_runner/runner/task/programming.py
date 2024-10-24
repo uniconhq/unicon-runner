@@ -1,6 +1,5 @@
 import asyncio
 import uuid
-from enum import Enum
 from typing import Any, Self
 
 from pydantic import BaseModel, model_validator
