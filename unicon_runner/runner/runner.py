@@ -5,7 +5,7 @@ from unicon_runner.executor.variants.base import Executor, ExecutorResult
 from unicon_runner.executor.variants.podman.executor import PodmanExecutor
 from unicon_runner.executor.variants.sandbox.executor import SandboxExecutor
 from unicon_runner.executor.variants.unsafe.executor import UnsafeExecutor
-from unicon_runner.runner.task.programming import ProgrammingTask
+from unicon_runner.runner.task.programming import Programs
 from unicon_runner.schemas import Request
 
 
@@ -36,5 +36,5 @@ class Runner:
     async def run_request(self, request: Request, request_id: str) -> ExecutorResult:
         return await self.executor.run_request(request, request_id)
 
-    async def run_programming_task(self, programming_task: ProgrammingTask):
-        return await programming_task.run(self.executor)
+    async def run_programs(self, programs: Programs):
+        return await programs.run(self.executor)
