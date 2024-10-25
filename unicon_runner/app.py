@@ -11,7 +11,7 @@ from unicon_runner.lib.constants import (
     TASK_QUEUE_NAME,
 )
 from unicon_runner.runner.runner import Runner, RunnerType
-from unicon_runner.runner.task.programming import ProgrammingTask
+from unicon_runner.runner.task.programming import Programs
 
 connection = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
 
@@ -33,8 +33,8 @@ output_channel.queue_bind(
 executor = Runner(RunnerType(RUNNER_TYPE))
 
 
-async def run_submission(programming_task: ProgrammingTask):
-    result = await executor.run_programming_task(programming_task=programming_task)
+async def run_submission(programs: Programs):
+    result = await executor.run_programs(programs=programs)
 
     message = result.model_dump_json()
     output_channel.basic_publish(exchange="", routing_key=RESULT_QUEUE_NAME, body=message)
@@ -43,10 +43,12 @@ async def run_submission(programming_task: ProgrammingTask):
 
 def retrieve_job(ch, method, properties, body):
     try:
-        task = ProgrammingTask.model_validate_json(body)
+        task = Programs.model_validate_json(body)
         print(task)
     except Exception as e:
         print(e)
+        # TODO: delete this
+        ch.basic_ack(delivery_tag=method.delivery_tag)
         return
     asyncio.run(run_submission(task))
     ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -54,7 +56,9 @@ def retrieve_job(ch, method, properties, body):
 
 def main():
     """Worker queue to listen for execute jobs"""
-    input_channel.basic_consume(queue=TASK_QUEUE_NAME, on_message_callback=retrieve_job)
+    input_channel.basic_consume(
+        queue=TASK_QUEUE_NAME, on_message_callback=retrieve_job, auto_ack=False
+    )
     input_channel.start_consuming()
 
 
