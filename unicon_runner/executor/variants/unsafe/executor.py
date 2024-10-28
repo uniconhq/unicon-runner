@@ -48,7 +48,7 @@ class UnsafeExecutor(Executor):
 
         python_version: str = "3.11.9"
         if request.environment.extra_options:
-            python_version = request.environment.extra_options.get("python_version", python_version)
+            python_version = request.environment.extra_options.get("version", python_version)
 
         # 2. Cd into temp folder and run uv sync && uv run entry
         exec_proc = await asyncio.create_subprocess_shell(

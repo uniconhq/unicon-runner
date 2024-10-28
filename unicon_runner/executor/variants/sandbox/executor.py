@@ -57,7 +57,7 @@ class SandboxExecutor(Executor):
 
         python_version: str = "3.11.9"
         if request.environment.extra_options:
-            python_version = request.environment.extra_options.get("python_version", python_version)
+            python_version = request.environment.extra_options.get("version", python_version)
 
         # 2. Cd into temp folder and run uv sync && uv run entry
         install_proc = await asyncio.create_subprocess_shell(
@@ -73,12 +73,22 @@ class SandboxExecutor(Executor):
                 shlex.join(
                     [
                         self.CONTY,
-                        f"--bind {os.path.abspath(folder_path)} {folder_path}",
-                        f"--ro-bind {os.path.abspath(self.RUN_SCRIPT)} ~/{self.RUN_SCRIPT}",
+                        "--bind",
+                        os.path.abspath(folder_path),
+                        folder_path,
+                        "--ro-bind",
+                        os.path.abspath(self.RUN_SCRIPT),
+                        os.path.expanduser(f"~/{self.RUN_SCRIPT}"),
                         # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
                         # We are using `uv` as the environment manager and program runner
-                        "--ro-bind ~/.cargo ~/.cargo",
-                        f"./{self.RUN_SCRIPT} {folder_path} {self.CODE_FOLDER_NAME}/{request.entrypoint} {mem_limit_mb} {time_limit_secs}",
+                        "--ro-bind",
+                        os.path.expanduser("~/.cargo/bin/uv"),
+                        os.path.expanduser("~/.cargo/bin/uv"),
+                        f"./{self.RUN_SCRIPT}",
+                        folder_path,
+                        f"{self.CODE_FOLDER_NAME}/{request.entrypoint}",
+                        str(mem_limit_mb),
+                        str(time_limit_secs),
                     ]
                 ),
                 stdout=asyncio.subprocess.PIPE,
