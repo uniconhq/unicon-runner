@@ -60,21 +60,34 @@ class SandboxExecutor(Executor):
         await install_proc.wait()
 
         async with self.lock:
-            proc = await asyncio.create_subprocess_shell(
-                f"SANDBOX=1 SANDBOX_LEVEL=1 QUIET_MODE=1 UV_CONCURRENT_INSTALLS=1 {self.CONTY} "
-                f"--bind {os.path.abspath(folder_path)} {folder_path} "
-                f"--ro-bind {os.path.abspath(self.RUN_SCRIPT)} ~/{self.RUN_SCRIPT} "
-                # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
-                # We are using `uv` as the environment manager and program runner
-                f"--ro-bind ~/.cargo ~/.cargo "
-                f"./{self.RUN_SCRIPT} {folder_path} {self.CODE_FOLDER_NAME}/{request.entrypoint} {request.environment.memory_limit * 1024} {request.environment.time_limit}",
+            exec_proc = await asyncio.create_subprocess_shell(
+                shlex.join(
+                    [
+                        self.CONTY,
+                        f"--bind {os.path.abspath(folder_path)} {folder_path}",
+                        f"--ro-bind {os.path.abspath(self.RUN_SCRIPT)} ~/{self.RUN_SCRIPT}",
+                        # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
+                        # We are using `uv` as the environment manager and program runner
+                        "--ro-bind ~/.cargo ~/.cargo",
+                        f"./{self.RUN_SCRIPT} {folder_path} {self.CODE_FOLDER_NAME}/{request.entrypoint} {mem_limit_mb} {time_limit_secs}",
+                    ]
+                ),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env={
+                    **os.environ,
+                    # Conty specific environment variables
+                    "SANDBOX": "1",
+                    "SANDBOX_LEVEL": "1",
+                    "QUIET_MODE": "1",
+                    # NOTE: We need to unset VIRTUAL_ENV to prevent uv from using it
+                    "VIRTUAL_ENV": "",
+                },
             )
 
-            stdout, stderr = await proc.communicate()
+            stdout, stderr = await exec_proc.communicate()
 
-        match proc.returncode:
+        match exec_proc.returncode:
             case 137:
                 status = Status.MLE
             case 124:
