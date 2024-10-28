@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shlex
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -42,16 +43,31 @@ class UnsafeExecutor(Executor):
             ):
                 f.write(request.environment.extra_options["requirements"])
 
+        mem_limit_mb: int = request.environment.memory_limit * 1024
+        time_limit_secs: int = request.environment.time_limit
+        python_version: str = request.environment.extra_options.get("python_version", "3.11.9")
+
         # 2. Cd into temp folder and run uv sync && uv run entry
-        proc = await asyncio.create_subprocess_shell(
-            f"./{self.RUN_SCRIPT} {folder_path} {self.CODE_FOLDER_NAME}/{request.entrypoint} {request.environment.memory_limit * 1024} {request.environment.time_limit}",
+        exec_proc = await asyncio.create_subprocess_shell(
+            shlex.join(
+                [
+                    self.RUN_SCRIPT,
+                    folder_path,
+                    f"{self.CODE_FOLDER_NAME}/{request.entrypoint}",
+                    python_version,
+                    str(mem_limit_mb),
+                    str(time_limit_secs),
+                ]
+            ),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            # NOTE: We need to unset VIRTUAL_ENV to prevent uv from using it
+            env={**os.environ, "VIRTUAL_ENV": ""},
         )
 
-        stdout, stderr = await proc.communicate()
+        stdout, stderr = await exec_proc.communicate()
 
-        match proc.returncode:
+        match exec_proc.returncode:
             case 137:
                 status = Status.MLE
             case 124:
