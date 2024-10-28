@@ -27,6 +27,9 @@ class SandboxExecutor(Executor):
     lock = asyncio.Lock()
 
     async def _execute(self, request: Request, request_id: str, folder_path: str) -> ExecutorResult:
+        if self.CONTY is None:
+            raise ValueError("CONTY_PATH environment variable not set")
+
         # 1. Copy the uv files
         code_folder_path = os.path.join(folder_path, self.CODE_FOLDER_NAME)
         os.mkdir(code_folder_path)
@@ -43,12 +46,18 @@ class SandboxExecutor(Executor):
             f.write("")
 
         with open(os.path.join(folder_path, "requirements.txt"), "w") as f:
-            if "requirements" in request.environment.extra_options:
+            if (
+                request.environment.extra_options
+                and "requirements" in request.environment.extra_options
+            ):
                 f.write(request.environment.extra_options["requirements"])
 
         mem_limit_mb: int = request.environment.memory_limit * 1024
         time_limit_secs: int = request.environment.time_limit
-        python_version: str = request.environment.extra_options.get("python_version", "3.11.9")
+
+        python_version: str = "3.11.9"
+        if request.environment.extra_options:
+            python_version = request.environment.extra_options.get("python_version", python_version)
 
         # 2. Cd into temp folder and run uv sync && uv run entry
         install_proc = await asyncio.create_subprocess_shell(

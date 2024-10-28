@@ -45,7 +45,10 @@ class UnsafeExecutor(Executor):
 
         mem_limit_mb: int = request.environment.memory_limit * 1024
         time_limit_secs: int = request.environment.time_limit
-        python_version: str = request.environment.extra_options.get("python_version", "3.11.9")
+
+        python_version: str = "3.11.9"
+        if request.environment.extra_options:
+            python_version = request.environment.extra_options.get("python_version", python_version)
 
         # 2. Cd into temp folder and run uv sync && uv run entry
         exec_proc = await asyncio.create_subprocess_shell(
