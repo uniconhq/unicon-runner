@@ -64,6 +64,8 @@ class SandboxExecutor(Executor):
             shlex.join([self.INSTALL_SCRIPT, folder_path, python_version]),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            # NOTE: We need to unset VIRTUAL_ENV to prevent uv from using it
+            env={**os.environ, "VIRTUAL_ENV": ""},
         )
 
         await install_proc.wait()
@@ -84,6 +86,10 @@ class SandboxExecutor(Executor):
                         "--ro-bind",
                         os.path.expanduser("~/.cargo/bin/uv"),
                         os.path.expanduser("~/.cargo/bin/uv"),
+                        # NOTE: We need to bind the uv cache folder to access uv-managed python executables
+                        "--ro-bind",
+                        os.path.expanduser("~/.local/share/uv"),
+                        os.path.expanduser("~/.local/share/uv"),
                         f"./{self.RUN_SCRIPT}",
                         folder_path,
                         f"{self.CODE_FOLDER_NAME}/{request.entrypoint}",
