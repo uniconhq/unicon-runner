@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shlex
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -45,13 +46,18 @@ class SandboxExecutor(Executor):
             if "requirements" in request.environment.extra_options:
                 f.write(request.environment.extra_options["requirements"])
 
+        mem_limit_mb: int = request.environment.memory_limit * 1024
+        time_limit_secs: int = request.environment.time_limit
+        python_version: str = request.environment.extra_options.get("python_version", "3.11.9")
+
         # 2. Cd into temp folder and run uv sync && uv run entry
-        proc = await asyncio.create_subprocess_shell(
-            f"UV_CONCURRENT_INSTALLS=1 {self.INSTALL_SCRIPT} {folder_path}",
+        install_proc = await asyncio.create_subprocess_shell(
+            shlex.join([self.INSTALL_SCRIPT, folder_path, python_version]),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        await proc.wait()
+
+        await install_proc.wait()
 
         async with self.lock:
             proc = await asyncio.create_subprocess_shell(
