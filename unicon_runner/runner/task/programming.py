@@ -33,7 +33,7 @@ class Programs(BaseModel):
     programs: list[Program]
 
     async def run(self, executor: Executor) -> TaskEvalResult[list[Any]]:
-        results_with_index: dict[int, any] = {}
+        results_with_index: dict[int, Any] = {}
         async with asyncio.TaskGroup() as tg:
             for index, request in enumerate(self.programs):
                 tg.create_task(self.run_program(executor, request, index, results_with_index))
