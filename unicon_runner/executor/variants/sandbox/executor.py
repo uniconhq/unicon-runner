@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shlex
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -26,6 +27,9 @@ class SandboxExecutor(Executor):
     lock = asyncio.Lock()
 
     async def _execute(self, request: Request, request_id: str, folder_path: str) -> ExecutorResult:
+        if self.CONTY is None:
+            raise ValueError("CONTY_PATH environment variable not set")
+
         # 1. Copy the uv files
         code_folder_path = os.path.join(folder_path, self.CODE_FOLDER_NAME)
         os.mkdir(code_folder_path)
@@ -42,33 +46,71 @@ class SandboxExecutor(Executor):
             f.write("")
 
         with open(os.path.join(folder_path, "requirements.txt"), "w") as f:
-            if "requirements" in request.environment.options:
-                f.write(request.environment.options["requirements"])
+            if (
+                request.environment.extra_options
+                and "requirements" in request.environment.extra_options
+            ):
+                f.write(request.environment.extra_options["requirements"])
+
+        mem_limit_mb: int = request.environment.memory_limit * 1024
+        time_limit_secs: int = request.environment.time_limit
+
+        python_version: str = "3.11.9"
+        if request.environment.extra_options:
+            python_version = request.environment.extra_options.get("version", python_version)
 
         # 2. Cd into temp folder and run uv sync && uv run entry
-        proc = await asyncio.create_subprocess_shell(
-            f"UV_CONCURRENT_INSTALLS=1 {self.INSTALL_SCRIPT} {folder_path}",
+        install_proc = await asyncio.create_subprocess_shell(
+            shlex.join([self.INSTALL_SCRIPT, folder_path, python_version]),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            # NOTE: We need to unset VIRTUAL_ENV to prevent uv from using it
+            env={**os.environ, "VIRTUAL_ENV": ""},
         )
-        await proc.wait()
+
+        await install_proc.wait()
 
         async with self.lock:
-            proc = await asyncio.create_subprocess_shell(
-                f"SANDBOX=1 SANDBOX_LEVEL=1 QUIET_MODE=1 UV_CONCURRENT_INSTALLS=1 {self.CONTY} "
-                # proc = await asyncio.create_subprocess_shell(
-                #     f"UV_CONCURRENT_INSTALLS=1 {self.INSTALL_SCRIPT} {folder_path} && SANDBOX=1 SANDBOX_LEVEL=1 QUIET_MODE=1 UV_CONCURRENT_INSTALLS=1 {self.CONTY} "
-                f"--bind {os.path.abspath(folder_path)} {folder_path} "
-                f"--ro-bind {os.path.abspath(self.RUN_SCRIPT)} ~/{self.RUN_SCRIPT} "
-                # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
-                # We are using `uv` as the environment manager and program runner
-                f"--ro-bind ~/.cargo ~/.cargo "
-                f"./{self.RUN_SCRIPT} {folder_path} {self.CODE_FOLDER_NAME}/{request.entrypoint} {request.environment.memory_limit * 1024} {request.environment.time_limit}",
+            exec_proc = await asyncio.create_subprocess_shell(
+                shlex.join(
+                    [
+                        self.CONTY,
+                        "--bind",
+                        os.path.abspath(folder_path),
+                        folder_path,
+                        "--ro-bind",
+                        os.path.abspath(self.RUN_SCRIPT),
+                        os.path.expanduser(f"~/{self.RUN_SCRIPT}"),
+                        # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
+                        # We are using `uv` as the environment manager and program runner
+                        "--ro-bind",
+                        os.path.expanduser("~/.cargo/bin/uv"),
+                        os.path.expanduser("~/.cargo/bin/uv"),
+                        # NOTE: We need to bind the uv cache folder to access uv-managed python executables
+                        "--ro-bind",
+                        os.path.expanduser("~/.local/share/uv"),
+                        os.path.expanduser("~/.local/share/uv"),
+                        f"./{self.RUN_SCRIPT}",
+                        folder_path,
+                        f"{self.CODE_FOLDER_NAME}/{request.entrypoint}",
+                        str(mem_limit_mb),
+                        str(time_limit_secs),
+                    ]
+                ),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env={
+                    **os.environ,
+                    # Conty specific environment variables
+                    "SANDBOX": "1",
+                    "SANDBOX_LEVEL": "1",
+                    "QUIET_MODE": "1",
+                    # NOTE: We need to unset VIRTUAL_ENV to prevent uv from using it
+                    "VIRTUAL_ENV": "",
+                },
             )
 
-            stdout, stderr = await proc.communicate()
+            stdout, stderr = await exec_proc.communicate()
 
         with open(os.path.join(folder_path, "exit_code")) as f:
             exit_code = int(f.read())

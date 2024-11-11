@@ -1,7 +1,9 @@
 #!/bin/bash
 
 cd $1
-ulimit -v $3
-uv sync -q
+
+uv venv --python $3
 uv add -r requirements.txt -q
-timeout $4 uv run $2
+
+ulimit -v $4
+timeout $5 uv run $2
