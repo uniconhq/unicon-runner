@@ -70,7 +70,10 @@ class SandboxExecutor(Executor):
 
             stdout, stderr = await proc.communicate()
 
-        match proc.returncode:
+        with open(os.path.join(folder_path, "exit_code")) as f:
+            exit_code = int(f.read())
+
+        match exit_code:
             case 137:
                 status = Status.MLE
             case 124:
