@@ -15,7 +15,7 @@ executor = Runner(RunnerType(RUNNER_TYPE))
 
 async def run_programming_task():
     task = EXAMPLE
-    result = await executor.run_request(Request.model_validate_json(task))
+    result = await executor.run_request(Request.model_validate_json(task), "test")
     # result = await executor.run_programming_task(
     #     programming_task=ProgrammingTask.model_validate_json(task)
     # )
