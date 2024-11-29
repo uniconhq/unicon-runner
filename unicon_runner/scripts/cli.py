@@ -5,9 +5,9 @@ from pprint import pprint
 
 from unicon_runner.lib.constants import RUNNER_TYPE
 from unicon_runner.runner.runner import Runner, RunnerType
-from unicon_runner.runner.task.programming import Programs
+from unicon_runner.schemas import Request
 
-with open("unicon_runner/scripts/test.json") as f:
+with open("unicon_runner/scripts/test2.json") as f:
     EXAMPLE = f.read()
 
 executor = Runner(RunnerType(RUNNER_TYPE))
@@ -15,7 +15,7 @@ executor = Runner(RunnerType(RUNNER_TYPE))
 
 async def run_programming_task():
     task = EXAMPLE
-    result = await executor.run_programs(programs=Programs.model_validate_json(task))
+    result = await executor.run_request(Request.model_validate_json(task), "test")
     message = result.model_dump()
     pprint(message)
 
