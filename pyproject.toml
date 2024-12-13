@@ -21,9 +21,6 @@ dev-dependencies = [
     "mypy>=1.11.2",
 ]
 
-[tool.mypy]
-enable_incomplete_feature = "NewGenericSyntax"
-
 [tool.ruff]
 line-length = 100
 lint.select = ["I", "F", "UP", "B", "SIM"]
