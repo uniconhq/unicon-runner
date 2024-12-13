@@ -3,8 +3,8 @@
 import asyncio
 from pprint import pprint
 
-from unicon_runner.lib.constants import RUNNER_TYPE
-from unicon_runner.runner.runner import Runner, RunnerType
+from unicon_runner.constants import RUNNER_TYPE
+from unicon_runner.runner.base import Runner, RunnerType
 from unicon_runner.schemas import Request
 
 with open("unicon_runner/scripts/test2.json") as f:

@@ -4,7 +4,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from unicon_runner.executor.variants.base import Executor, ExecutorResult
+from unicon_runner.executor.base import Executor, ExecutorResult
 from unicon_runner.schemas import (
     File,
     ProgrammingEnvironment,

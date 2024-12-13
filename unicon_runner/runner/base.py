@@ -1,10 +1,10 @@
 from collections.abc import Mapping
 from enum import Enum
 
-from unicon_runner.executor.variants.base import Executor, ExecutorResult
-from unicon_runner.executor.variants.podman.executor import PodmanExecutor
-from unicon_runner.executor.variants.sandbox.executor import SandboxExecutor
-from unicon_runner.executor.variants.unsafe.executor import UnsafeExecutor
+from unicon_runner.executor.base import Executor, ExecutorResult
+from unicon_runner.executor.podman.executor import PodmanExecutor
+from unicon_runner.executor.sandbox.executor import SandboxExecutor
+from unicon_runner.executor.unsafe.executor import UnsafeExecutor
 from unicon_runner.runner.task.programming import Programs
 from unicon_runner.schemas import Request
 

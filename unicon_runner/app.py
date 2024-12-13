@@ -3,14 +3,14 @@ import asyncio
 import pika  # type: ignore
 from pika.exchange_type import ExchangeType  # type: ignore
 
-from unicon_runner.lib.constants import (
+from unicon_runner.constants import (
     EXCHANGE_NAME,
     RABBITMQ_URL,
     RESULT_QUEUE_NAME,
     RUNNER_TYPE,
     TASK_QUEUE_NAME,
 )
-from unicon_runner.runner.runner import Runner, RunnerType
+from unicon_runner.runner.base import Runner, RunnerType
 from unicon_runner.runner.task.programming import Programs
 
 connection = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
