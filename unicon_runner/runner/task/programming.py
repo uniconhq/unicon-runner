@@ -4,7 +4,7 @@ from typing import Any, Self
 
 from pydantic import BaseModel, model_validator
 
-from unicon_runner.executor.variants.base import Executor
+from unicon_runner.executor.variants.base import Executor, ExecutorResult
 from unicon_runner.schemas import (
     File,
     ProgrammingEnvironment,
@@ -32,8 +32,8 @@ class Programs(BaseModel):
     environment: ProgrammingEnvironment
     programs: list[Program]
 
-    async def run(self, executor: Executor) -> TaskEvalResult[list[Any]]:
-        results_with_index: dict[int, Any] = {}
+    async def run(self, executor: Executor) -> TaskEvalResult[list[ExecutorResult]]:
+        results_with_index: dict[int, ExecutorResult] = {}
         async with asyncio.TaskGroup() as tg:
             for index, request in enumerate(self.programs):
                 tg.create_task(self.run_program(executor, request, index, results_with_index))
@@ -51,7 +51,7 @@ class Programs(BaseModel):
         executor: Executor,
         program: Program,
         index: int,
-        results: dict,
+        results: dict[int, ExecutorResult],
     ):
         request = Request(**program.model_dump(), environment=self.environment)
         results[index] = await executor.run_request(request, str(uuid.uuid4()))
