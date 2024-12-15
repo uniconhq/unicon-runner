@@ -1,10 +1,10 @@
 import asyncio
 import uuid
-from typing import Any, Self
+from typing import Self
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
-from unicon_runner.executor.variants.base import Executor
+from unicon_runner.executor.variants.base import Executor, ExecutorResult
 from unicon_runner.schemas import (
     File,
     ProgrammingEnvironment,
@@ -16,6 +16,8 @@ from unicon_runner.schemas import (
 
 class Program(BaseModel):
     """Equivalent to RunnerPackage in unicon_backend"""
+
+    model_config = ConfigDict(extra="allow")
 
     entrypoint: str
     files: list[File]
@@ -32,8 +34,8 @@ class Programs(BaseModel):
     environment: ProgrammingEnvironment
     programs: list[Program]
 
-    async def run(self, executor: Executor) -> TaskEvalResult[list[Any]]:
-        results_with_index: dict[int, Any] = {}
+    async def run(self, executor: Executor) -> TaskEvalResult[list[ExecutorResult]]:
+        results_with_index: dict[int, ExecutorResult] = {}
         async with asyncio.TaskGroup() as tg:
             for index, request in enumerate(self.programs):
                 tg.create_task(self.run_program(executor, request, index, results_with_index))
@@ -51,7 +53,10 @@ class Programs(BaseModel):
         executor: Executor,
         program: Program,
         index: int,
-        results: dict,
+        results: dict[int, ExecutorResult],
     ):
         request = Request(**program.model_dump(), environment=self.environment)
-        results[index] = await executor.run_request(request, str(uuid.uuid4()))
+        result = await executor.run_request(request, str(uuid.uuid4()))
+        results[index] = ExecutorResult.model_validate(
+            {**(program.model_extra or {}), **result.model_dump()}
+        )

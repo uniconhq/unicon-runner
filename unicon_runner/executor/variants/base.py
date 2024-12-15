@@ -2,12 +2,13 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from unicon_runner.schemas import Request, Status
 
 
 class ExecutorResult(BaseModel):
+    model_config = ConfigDict(extra="allow")
     stdout: str
     stderr: str
     status: Status
@@ -39,7 +40,6 @@ class Executor(ABC):
 
     def clean_up_folder(self, folder_path: str):
         """Cleans up the temporary folder"""
-        # time.sleep(5)
         shutil.rmtree(folder_path)
 
     @abstractmethod
