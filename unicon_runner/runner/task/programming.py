@@ -2,9 +2,9 @@ import asyncio
 import uuid
 from typing import Self
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
-from unicon_runner.executor.variants.base import Executor, ExecutorResult, ExecutorResultWithId
+from unicon_runner.executor.variants.base import Executor, ExecutorResult, ExecutorResult
 from unicon_runner.schemas import (
     File,
     ProgrammingEnvironment,
@@ -17,7 +17,8 @@ from unicon_runner.schemas import (
 class Program(BaseModel):
     """Equivalent to RunnerPackage in unicon_backend"""
 
-    id: int
+    model_config = ConfigDict(extra="allow")
+
     """used for testcase_id in unicon_backend, but the runner doesnt need to know that, just needs to parrot it back"""
     entrypoint: str
     files: list[File]
@@ -34,14 +35,14 @@ class Programs(BaseModel):
     environment: ProgrammingEnvironment
     programs: list[Program]
 
-    async def run(self, executor: Executor) -> TaskEvalResult[list[ExecutorResultWithId]]:
-        results_with_index: dict[int, ExecutorResultWithId] = {}
+    async def run(self, executor: Executor) -> TaskEvalResult[list[ExecutorResult]]:
+        results_with_index: dict[int, ExecutorResult] = {}
         async with asyncio.TaskGroup() as tg:
             for index, request in enumerate(self.programs):
                 tg.create_task(self.run_program(executor, request, index, results_with_index))
 
         results = [results_with_index[i] for i in range(len(results_with_index))]
-        print(results)
+
         return TaskEvalResult(
             submission_id=self.submission_id,
             status=TaskEvalStatus.SUCCESS,
@@ -53,10 +54,10 @@ class Programs(BaseModel):
         executor: Executor,
         program: Program,
         index: int,
-        results: dict[int, ExecutorResultWithId],
+        results: dict[int, ExecutorResult],
     ):
         request = Request(**program.model_dump(), environment=self.environment)
         result = await executor.run_request(request, str(uuid.uuid4()))
-        results[index] = ExecutorResultWithId.model_validate(
-            {"id": program.id, **result.model_dump()}
+        results[index] = ExecutorResult.model_validate(
+            {**(program.model_extra or {}), **result.model_dump()}
         )

@@ -2,19 +2,16 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from unicon_runner.schemas import Request, Status
 
 
 class ExecutorResult(BaseModel):
+    model_config = ConfigDict(extra="allow")
     stdout: str
     stderr: str
     status: Status
-
-
-class ExecutorResultWithId(ExecutorResult):
-    id: int
 
 
 class Executor(ABC):
