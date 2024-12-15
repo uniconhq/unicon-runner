@@ -13,6 +13,10 @@ class ExecutorResult(BaseModel):
     status: Status
 
 
+class ExecutorResultWithId(ExecutorResult):
+    id: int
+
+
 class Executor(ABC):
     on_slurm = False
 
