@@ -4,7 +4,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from unicon_runner.executor.variants.base import Executor, ExecutorResult, ExecutorResult
+from unicon_runner.executor.variants.base import Executor, ExecutorResult
 from unicon_runner.schemas import (
     File,
     ProgrammingEnvironment,
@@ -19,7 +19,6 @@ class Program(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    """used for testcase_id in unicon_backend, but the runner doesnt need to know that, just needs to parrot it back"""
     entrypoint: str
     files: list[File]
 
