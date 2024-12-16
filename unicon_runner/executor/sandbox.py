@@ -24,6 +24,12 @@ class SandboxExecutor(UnsafeExecutor):
     RUN_SCRIPT_TEMPLATE: Template = JINJA_ENV.get_template("run_sandbox.sh.jinja")
 
     async def _execute(self, _: str, __: Program, cwd: Path, ___: ComputeContext) -> ExecutorResult:
+        # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
+        # We are using `uv` as the environment manager and program runner
+        uv_path = Path("~/.cargo/bin/uv").expanduser()
+        # NOTE: We need to bind the uv cache folder to access uv-managed python executables
+        uv_cache_path = Path("~/.local/share/uv").expanduser()
+
         async with self.lock:
             exec_proc = await asyncio.create_subprocess_shell(
                 shlex.join(
@@ -33,18 +39,10 @@ class SandboxExecutor(UnsafeExecutor):
                         str(cwd.absolute()),
                         str(cwd),
                         "--ro-bind",
-                        str(cwd / "run.sh"),
-                        os.path.expanduser("~/run.sh"),
-                        # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
-                        # We are using `uv` as the environment manager and program runner
+                        *([str(uv_path)] * 2),
                         "--ro-bind",
-                        os.path.expanduser("~/.cargo/bin/uv"),
-                        os.path.expanduser("~/.cargo/bin/uv"),
-                        # NOTE: We need to bind the uv cache folder to access uv-managed python executables
-                        "--ro-bind",
-                        os.path.expanduser("~/.local/share/uv"),
-                        os.path.expanduser("~/.local/share/uv"),
-                        str(self.ENTRYPOINT),
+                        *([str(uv_cache_path)] * 2),
+                        str(cwd / self.ENTRYPOINT),
                     ]
                 ),
                 stdout=asyncio.subprocess.PIPE,
