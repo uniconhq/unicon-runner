@@ -1,47 +1,65 @@
-import os
 import shutil
+import uuid
 from abc import ABC, abstractmethod
+from enum import Enum
+from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
 
-from unicon_runner.schemas import Request, Status
+from unicon_runner.job import ComputeContext, Program
+
+
+class Status(str, Enum):
+    OK = "OK"
+    MLE = "MLE"
+    TLE = "TLE"
+    RTE = "RTE"
+    WA = "WA"
+
+
+class ExecutorType(str, Enum):
+    PODMAN = "podman"
+    UNSAFE = "unsafe"
+    SANDBOX = "sandbox"
 
 
 class ExecutorResult(BaseModel):
     model_config = ConfigDict(extra="allow")
-    stdout: str
-    stderr: str
-    status: Status
+
+    stdout: str | None
+    stderr: str | None
+    status: Status | None
+
+
+class ExecutorCwd:
+    def __init__(self, root_dir: Path, id: str):
+        self._cwd = root_dir / id
+        self._cwd.mkdir()
+
+    def __enter__(self):
+        return self._cwd
+
+    def __exit__(self, type, value, traceback):
+        shutil.rmtree(self._cwd)
+        self._cwd.rmdir()
 
 
 class Executor(ABC):
     on_slurm = False
 
-    async def run_request(self, request: Request, request_id: str) -> ExecutorResult:
-        folder_path = self.set_up_request(request_id)
-        result = await self._execute(
-            request,
-            request_id,
-            folder_path,
-        )
-        self.clean_up_folder(folder_path)
-        return result
+    @property
+    def root_dir(self) -> Path:
+        return Path("/tmp" if self.on_slurm else "temp")
 
-    def set_up_request(self, request_id: str) -> str:
-        """
-        All executors will be given a temporary folder named after the request id to work with.
-        Returns path to this temporary folder.
-        """
-        folder_name = request_id
-        folder_path = os.path.join("/tmp" if self.on_slurm else "temp", folder_name)
-        os.makedirs(folder_path)
-
-        return folder_path
-
-    def clean_up_folder(self, folder_path: str):
-        """Cleans up the temporary folder"""
-        shutil.rmtree(folder_path)
+    async def run(self, program: Program, context: ComputeContext) -> ExecutorResult:
+        _tracking_fields = program.model_extra or {}
+        id: str = str(uuid.uuid4())  # Unique identifier for the program
+        with ExecutorCwd(self.root_dir, id) as cwd:
+            result = await self._execute(id, program, cwd, context)
+        return ExecutorResult.model_validate({**_tracking_fields, **result.model_dump()})
 
     @abstractmethod
-    async def _execute(self, request: Request, request_id: str, folder_path: str):
+    async def _execute(
+        self, id: str, program: Program, cwd: Path, context: ComputeContext
+    ) -> ExecutorResult:
         raise NotImplementedError

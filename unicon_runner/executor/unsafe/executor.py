@@ -1,64 +1,61 @@
 import asyncio
 import os
 import shlex
+from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from unicon_runner.executor.base import Executor, ExecutorResult
-from unicon_runner.schemas import Request, Status
+from unicon_runner.executor.base import Executor, ExecutorResult, Status
+from unicon_runner.job import ComputeContext, Program
 
 
 class UnsafeExecutor(Executor):
     """Uses uv to execute code"""
 
     env = Environment(
-        loader=FileSystemLoader("unicon_runner/executor/variants/unsafe/templates"),
+        loader=FileSystemLoader("unicon_runner/executor/unsafe/templates"),
         autoescape=select_autoescape(),
     )
     pyproject_template = env.get_template("pyproject.toml.jinja")
     CODE_FOLDER_NAME = "src"
-    RUN_SCRIPT = "unicon_runner/executor/variants/unsafe/scripts/run.sh"
+    RUN_SCRIPT = "unicon_runner/executor/unsafe/scripts/run.sh"
 
-    async def _execute(self, request: Request, request_id: str, folder_path: str) -> ExecutorResult:
+    async def _execute(self, id: str, program: Program, cwd: Path, context: ComputeContext):
         # 1. Copy the uv files
-        code_folder_path = os.path.join(folder_path, self.CODE_FOLDER_NAME)
-        print(code_folder_path)
-        os.mkdir(code_folder_path)
+        code_dir = cwd / self.CODE_FOLDER_NAME
+        code_dir.mkdir()
 
-        for file in request.files:
-            with open(os.path.join(code_folder_path, file.file_name), "w") as f:
+        for file in program.files:
+            with open(code_dir / file.file_name, "w") as f:
                 f.write(file.content)
 
-        with open(os.path.join(folder_path, "pyproject.toml"), "w") as f:
+        with open(cwd / "pyproject.toml" "w") as f:
             pyproject_file = self.pyproject_template.render()
             f.write(pyproject_file)
 
-        with open(os.path.join(code_folder_path, "__init__.py"), "w") as f:
+        with open(code_dir / "__init__.py", "w") as f:
             f.write("")
 
-        with open(os.path.join(folder_path, "requirements.txt"), "w") as f:
-            if (
-                request.environment.extra_options
-                and "requirements" in request.environment.extra_options
-            ):
-                f.write(request.environment.extra_options["requirements"])
+        with open(cwd / "requirements.txt" "w") as f:
+            if context.extra_options and "requirements" in context.extra_options:
+                f.write(context.extra_options["requirements"])
 
-        mem_limit_mb: int = request.environment.memory_limit * 1024
-        time_limit_secs: int = request.environment.time_limit
+        mem_limit_bytes: int = context.memory_limit_mb * 1024
+        time_limit_secs: int = context.time_limit_ms * 1000
 
         python_version: str = "3.11.9"
-        if request.environment.extra_options:
-            python_version = request.environment.extra_options.get("version", python_version)
+        if context.extra_options:
+            python_version = context.extra_options.get("version", python_version)
 
         # 2. Cd into temp folder and run uv sync && uv run entry
         exec_proc = await asyncio.create_subprocess_shell(
             shlex.join(
                 [
                     self.RUN_SCRIPT,
-                    folder_path,
-                    f"{self.CODE_FOLDER_NAME}/{request.entrypoint}",
+                    str(cwd),
+                    str(code_dir / program.entrypoint),
                     python_version,
-                    str(mem_limit_mb),
+                    str(mem_limit_bytes),
                     str(time_limit_secs),
                 ]
             ),

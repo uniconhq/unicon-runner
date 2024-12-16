@@ -1,19 +1,17 @@
 import asyncio
-import os
+from pathlib import Path
 
-from unicon_runner.executor.base import Executor, ExecutorResult
-from unicon_runner.schemas import Request, Status
+from unicon_runner.executor.base import Executor, ExecutorResult, Status
+from unicon_runner.job import ComputeContext, Program
 
 
 class PodmanExecutor(Executor):
     """Uses podman + Dockerfile in template to execute code"""
 
-    async def _execute(self, request: Request, request_id: str, folder_path: str) -> ExecutorResult:
-        folder_name = request_id
-
+    async def _execute(self, id: str, program: Program, cwd: Path, context: ComputeContext):
         # 1. Create files
-        for file in request.files:
-            with open(os.path.join(folder_path, file.file_name), "w") as f:
+        for file in program.files:
+            with open(cwd / file.file_name, "w") as f:
                 f.write(file.content)
 
         # 2. Spawn podman container
@@ -21,10 +19,10 @@ class PodmanExecutor(Executor):
         _IMAGE: str = "python:3.11.9"  # TEMP: Hardcoded base image
 
         proc = await asyncio.create_subprocess_shell(
-            f"podman run --rm --name {folder_name}_run "
-            f"-m {request.environment.memory_limit}m "
-            f"-v ./{folder_path}:/run {_IMAGE} "
-            f"timeout --verbose {request.environment.time_limit}s python run/{request.entrypoint}",
+            f"podman run --rm --name {id}_run "
+            f"-m {context.memory_limit_mb}m "
+            f"-v ./{cwd}:/run {_IMAGE} "
+            f"timeout --verbose {context.time_limit_ms}s python run/{program.entrypoint}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
