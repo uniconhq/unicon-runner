@@ -50,9 +50,9 @@ class UnsafeExecutor(Executor):
                 [
                     str(self.RUN_SCRIPT),
                     str(cwd),
-                    str(self.PACKAGE_DIR / program.entrypoint),
                     python_version,
                     str(mem_limit_bytes),
+                    str(self.PACKAGE_DIR / program.entrypoint),
                     str(time_limit_secs),
                 ]
             ),

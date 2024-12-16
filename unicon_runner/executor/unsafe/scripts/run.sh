@@ -1,9 +1,18 @@
 #!/bin/bash
 
-cd $1
+# Change directory to the working directory
+cd $1 
 
-uv venv --python $3
+# Install required Python interpreter and dependencies
+uv venv --python $2
 uv add -r requirements.txt -q
 
-ulimit -v $4
-timeout $5 uv run $2
+# NOTE: Memory limit is set in kilobytes
+# Reference: https://ss64.com/bash/ulimit.html
+ulimit -v $3
+# NOTE: Exit code is preserved if process is does not exceed time limit
+# Reference: https://www.man7.org/linux/man-pages/man1/timeout.1.html
+timeout $4 uv run $5
+
+exit_code=$?
+echo $exit_code > $1/exit_code
