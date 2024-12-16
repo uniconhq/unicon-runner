@@ -1,7 +1,11 @@
 import asyncio
 from pathlib import Path
 
-from unicon_runner.executor.base import Executor, ExecutorResult, FileSystemMapping, Status
+from unicon_runner.executor.base import (
+    Executor,
+    ExecutorResult,
+    FileSystemMapping,
+)
 from unicon_runner.job import ComputeContext, Program
 
 
@@ -11,7 +15,9 @@ class PodmanExecutor(Executor):
     def get_filesystem_mapping(self, program: Program, _: ComputeContext) -> FileSystemMapping:
         return [(Path(file.name), file.content) for file in program.files]
 
-    async def _execute(self, id: str, program: Program, cwd: Path, context: ComputeContext):
+    async def _execute(
+        self, id: str, program: Program, cwd: Path, context: ComputeContext
+    ) -> ExecutorResult:
         _IMAGE: str = "python:3.11.9"  # TEMP: Hardcoded base image
 
         proc = await asyncio.create_subprocess_shell(
@@ -23,23 +29,8 @@ class PodmanExecutor(Executor):
             stderr=asyncio.subprocess.PIPE,
         )
 
-        # 3. Output raw result
         stdout, stderr = await proc.communicate()
 
-        match proc.returncode:
-            case 137:
-                status = Status.MLE
-            case 124:
-                status = Status.TLE
-            case 1:
-                status = Status.RTE
-            case _:
-                status = Status.OK
-
-        return ExecutorResult.model_validate(
-            {
-                "status": status.value,
-                "stdout": stdout.decode(),
-                "stderr": stderr.decode(),
-            }
+        return ExecutorResult(
+            exit_code=proc.returncode or 1, stdout=stdout.decode(), stderr=stderr.decode()
         )

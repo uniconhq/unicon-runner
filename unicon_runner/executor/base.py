@@ -24,6 +24,12 @@ class ExecutorType(str, Enum):
 
 
 class ExecutorResult(BaseModel):
+    exit_code: int
+    stdout: str
+    stderr: str
+
+
+class ProgramResult(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     stdout: str | None
@@ -69,7 +75,7 @@ class Executor(ABC):
     ) -> ExecutorResult:
         raise NotImplementedError
 
-    async def run(self, program: Program, context: ComputeContext) -> ExecutorResult:
+    async def run(self, program: Program, context: ComputeContext) -> ProgramResult:
         _tracking_fields = program.model_extra or {}
         id: str = str(uuid.uuid4())  # Unique identifier for the program
         with ExecutorCwd(self.root_dir, id) as cwd:
@@ -77,4 +83,21 @@ class Executor(ABC):
                 (cwd / path).write_text(content)
             result = await self._execute(id, program, cwd, context)
 
-        return ExecutorResult.model_validate({**_tracking_fields, **result.model_dump()})
+        match result.exit_code:
+            case 137:
+                status = Status.MLE
+            case 124:
+                status = Status.TLE
+            case 1:
+                status = Status.RTE
+            case _:
+                status = Status.OK
+
+        return ProgramResult.model_validate(
+            {
+                **_tracking_fields,
+                "status": status.value,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+            }
+        )

@@ -10,7 +10,7 @@ from pika.exchange_type import ExchangeType
 
 from unicon_runner.constants import EXCHANGE_NAME, RABBITMQ_URL, RESULT_QUEUE_NAME, TASK_QUEUE_NAME
 from unicon_runner.executor import create_executor
-from unicon_runner.executor.base import Executor, ExecutorResult, ExecutorType
+from unicon_runner.executor.base import Executor, ExecutorType, ProgramResult
 from unicon_runner.job import Job, JobResult, Program
 
 app = typer.Typer()
@@ -32,7 +32,7 @@ def pull_job(
 async def run_job_and_push_result(
     push_result: Callable[[JobResult], None], executor: Executor, job: Job
 ) -> None:
-    async def _run_program(program: Program) -> ExecutorResult:
+    async def _run_program(program: Program) -> ProgramResult:
         return await executor.run(program, job.context)
 
     async with asyncio.TaskGroup() as tg:

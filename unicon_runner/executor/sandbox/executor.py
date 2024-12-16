@@ -4,7 +4,7 @@ import shlex
 from pathlib import Path
 
 from unicon_runner.constants import CONTY_PATH
-from unicon_runner.executor.base import ExecutorResult, Status
+from unicon_runner.executor.base import ExecutorResult
 from unicon_runner.executor.unsafe.executor import UnsafeExecutor
 from unicon_runner.job import ComputeContext, Program
 
@@ -15,7 +15,9 @@ class SandboxExecutor(UnsafeExecutor):
     # Mounting sometimes fails if we try to spawn multiple sandboxes on xlog.
     lock = asyncio.Lock()
 
-    async def _execute(self, _: str, program: Program, cwd: Path, context: ComputeContext):
+    async def _execute(
+        self, _: str, program: Program, cwd: Path, context: ComputeContext
+    ) -> ExecutorResult:
         mem_limit_bytes: int = context.memory_limit_mb * 1024
         time_limit_secs: int = context.time_limit_ms * 1000
 
@@ -69,21 +71,4 @@ class SandboxExecutor(UnsafeExecutor):
         with open(cwd / "exit_code") as f:
             exit_code = int(f.read())
 
-        match exit_code:
-            case 137:
-                status = Status.MLE
-            case 124:
-                status = Status.TLE
-            case 1:
-                status = Status.RTE
-            case _:
-                status = Status.OK
-
-        # 3. Return result
-        return ExecutorResult.model_validate(
-            {
-                "status": status.value,
-                "stdout": stdout.decode(),
-                "stderr": stderr.decode(),
-            }
-        )
+        return ExecutorResult(exit_code=exit_code, stdout=stdout.decode(), stderr=stderr.decode())

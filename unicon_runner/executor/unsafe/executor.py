@@ -6,7 +6,11 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader, Template, select_autoescape
 
-from unicon_runner.executor.base import Executor, ExecutorResult, FileSystemMapping, Status
+from unicon_runner.executor.base import (
+    Executor,
+    ExecutorResult,
+    FileSystemMapping,
+)
 from unicon_runner.executor.unsafe import scripts
 from unicon_runner.job import ComputeContext, Program
 
@@ -36,7 +40,9 @@ class UnsafeExecutor(Executor):
             (Path("requirements.txt"), requirements),
         ]
 
-    async def _execute(self, _: str, program: Program, cwd: Path, context: ComputeContext):
+    async def _execute(
+        self, _: str, program: Program, cwd: Path, context: ComputeContext
+    ) -> ExecutorResult:
         mem_limit_bytes: int = context.memory_limit_mb * 1024
         time_limit_secs: int = context.time_limit_ms * 1000
 
@@ -64,21 +70,6 @@ class UnsafeExecutor(Executor):
 
         stdout, stderr = await exec_proc.communicate()
 
-        match exec_proc.returncode:
-            case 137:
-                status = Status.MLE
-            case 124:
-                status = Status.TLE
-            case 1:
-                status = Status.RTE
-            case _:
-                status = Status.OK
-
-        # 3. Return result
-        return ExecutorResult.model_validate(
-            {
-                "status": status.value,
-                "stdout": stdout.decode(),
-                "stderr": stderr.decode(),
-            }
+        return ExecutorResult(
+            exit_code=exec_proc.returncode or 1, stdout=stdout.decode(), stderr=stderr.decode()
         )
