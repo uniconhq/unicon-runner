@@ -23,7 +23,7 @@ class File(BaseModel):
 
 class ComputeContext(BaseModel):
     language: Language
-    time_limit_ms: int
+    time_limit_secs: int
     memory_limit_mb: int
 
     extra_options: dict[str, str] | None

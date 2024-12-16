@@ -1,7 +1,7 @@
 from unicon_runner.executor.base import ExecutorType
-from unicon_runner.executor.podman.executor import PodmanExecutor
-from unicon_runner.executor.sandbox.executor import SandboxExecutor
-from unicon_runner.executor.unsafe.executor import UnsafeExecutor
+from unicon_runner.executor.podman import PodmanExecutor
+from unicon_runner.executor.sandbox import SandboxExecutor
+from unicon_runner.executor.unsafe import UnsafeExecutor
 
 
 def create_executor(executor_type: ExecutorType):
