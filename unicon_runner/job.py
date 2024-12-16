@@ -10,10 +10,10 @@ class Language(str, Enum):
 
 
 class File(BaseModel):
-    file_name: str
+    name: str
     content: str
 
-    @field_validator("file_name", mode="before")
+    @field_validator("name", mode="before")
     @classmethod
     def check_filename_is_safe(cls, v):
         if not is_valid_filename(v):
@@ -37,7 +37,7 @@ class Program(BaseModel):
 
     @model_validator(mode="after")
     def check_entrypoint_exists_in_files(self) -> Self:
-        if not any(file.file_name == self.entrypoint for file in self.files):
+        if not any(file.name == self.entrypoint for file in self.files):
             raise ValueError(f"Entrypoint {self.entrypoint} not found in Program files")
         return self
 

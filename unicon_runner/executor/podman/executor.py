@@ -1,21 +1,17 @@
 import asyncio
 from pathlib import Path
 
-from unicon_runner.executor.base import Executor, ExecutorResult, Status
+from unicon_runner.executor.base import Executor, ExecutorResult, FileSystemMapping, Status
 from unicon_runner.job import ComputeContext, Program
 
 
 class PodmanExecutor(Executor):
     """Uses podman + Dockerfile in template to execute code"""
 
+    def get_filesystem_mapping(self, program: Program, _: ComputeContext) -> FileSystemMapping:
+        return [(Path(file.name), file.content) for file in program.files]
+
     async def _execute(self, id: str, program: Program, cwd: Path, context: ComputeContext):
-        # 1. Create files
-        for file in program.files:
-            with open(cwd / file.file_name, "w") as f:
-                f.write(file.content)
-
-        # 2. Spawn podman container
-
         _IMAGE: str = "python:3.11.9"  # TEMP: Hardcoded base image
 
         proc = await asyncio.create_subprocess_shell(

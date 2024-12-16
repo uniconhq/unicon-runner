@@ -6,7 +6,7 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader, Template, select_autoescape
 
-from unicon_runner.executor.base import Executor, ExecutorResult, Status
+from unicon_runner.executor.base import Executor, ExecutorResult, FileSystemMapping, Status
 from unicon_runner.executor.unsafe import scripts
 from unicon_runner.job import ComputeContext, Program
 
@@ -20,28 +20,23 @@ class UnsafeExecutor(Executor):
         loader=PackageLoader("unicon_runner.executor.unsafe"), autoescape=select_autoescape()
     ).get_template("pyproject.toml.jinja")
 
+    PACKAGE_DIR = Path("src")
     RUN_SCRIPT = UNSAFE_SCRIPTS / "run.sh"
 
-    async def _execute(self, id: str, program: Program, cwd: Path, context: ComputeContext):
-        # 1. Copy the uv files
-        code_dir = cwd / "src"
-        code_dir.mkdir()
+    def get_filesystem_mapping(
+        self, program: Program, context: ComputeContext
+    ) -> FileSystemMapping:
+        requirements: str = (
+            context.extra_options.get("requirements", "") if context.extra_options else ""
+        )
+        return [
+            *[(self.PACKAGE_DIR / file.name, file.content) for file in program.files],
+            (Path("pyproject.toml"), self.PYPROJECT_TEMPLATE.render()),
+            (Path("__init__.py"), ""),
+            (Path("requirements.txt"), requirements),
+        ]
 
-        for file in program.files:
-            with open(code_dir / file.file_name, "w") as f:
-                f.write(file.content)
-
-        with open(cwd / "pyproject.toml" "w") as f:
-            pyproject_file = self.PYPROJECT_TEMPLATE.render()
-            f.write(pyproject_file)
-
-        with open(code_dir / "__init__.py", "w") as f:
-            f.write("")
-
-        with open(cwd / "requirements.txt" "w") as f:
-            if context.extra_options and "requirements" in context.extra_options:
-                f.write(context.extra_options["requirements"])
-
+    async def _execute(self, _: str, program: Program, cwd: Path, context: ComputeContext):
         mem_limit_bytes: int = context.memory_limit_mb * 1024
         time_limit_secs: int = context.time_limit_ms * 1000
 
@@ -55,7 +50,7 @@ class UnsafeExecutor(Executor):
                 [
                     str(self.RUN_SCRIPT),
                     str(cwd),
-                    str(code_dir / program.entrypoint),
+                    str(self.PACKAGE_DIR / program.entrypoint),
                     python_version,
                     str(mem_limit_bytes),
                     str(time_limit_secs),
