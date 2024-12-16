@@ -1,38 +1,35 @@
 import asyncio
 import os
 import shlex
+from importlib import resources
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2 import Environment, PackageLoader, Template, select_autoescape
 
+from unicon_runner.constants import CONTY_PATH
 from unicon_runner.executor.base import Executor, ExecutorResult, Status
+from unicon_runner.executor.sandbox import scripts
 from unicon_runner.job import ComputeContext, Program
+
+SANDBOX_SCRIPTS = resources.files(scripts)
 
 
 class SandboxExecutor(Executor):
-    """Uses conty"""
-
     on_slurm = True
 
-    env = Environment(
-        loader=FileSystemLoader("unicon_runner/executor/unsafe/templates"),
-        autoescape=select_autoescape(),
-    )
-    pyproject_template = env.get_template("pyproject.toml.jinja")
-    CODE_FOLDER_NAME = "src"
-    INSTALL_SCRIPT = "unicon_runner/executor/variants/sandbox/scripts/install.sh"
-    RUN_SCRIPT = "unicon_runner/executor/variants/sandbox/scripts/run.sh"
-    CONTY = os.getenv("CONTY_PATH")
+    INSTALL_SCRIPT = SANDBOX_SCRIPTS / "install.sh"
+    RUN_SCRIPT = SANDBOX_SCRIPTS / "run.sh"
+
+    PYPROJECT_TEMPLATE: Template = Environment(
+        loader=PackageLoader("unicon_runner.executor.unsafe"), autoescape=select_autoescape()
+    ).get_template("pyproject.toml.jinja")
 
     # Mounting sometimes fails if we try to spawn multiple sandboxes on xlog.
     lock = asyncio.Lock()
 
     async def _execute(self, id: str, program: Program, cwd: Path, context: ComputeContext):
-        if self.CONTY is None:
-            raise ValueError("CONTY_PATH environment variable not set")
-
         # 1. Copy the uv files
-        code_dir = cwd / self.CODE_FOLDER_NAME
+        code_dir = cwd / "src"
         code_dir.mkdir()
 
         for file in program.files:
@@ -40,7 +37,7 @@ class SandboxExecutor(Executor):
                 f.write(file.content)
 
         with open(cwd / "pyproject.toml", "w") as f:
-            pyproject_file = self.pyproject_template.render()
+            pyproject_file = self.PYPROJECT_TEMPLATE.render()
             f.write(pyproject_file)
 
         with open(cwd / "__init__.py", "w") as f:
@@ -59,7 +56,7 @@ class SandboxExecutor(Executor):
 
         # 2. Cd into temp folder and run uv sync && uv run entry
         install_proc = await asyncio.create_subprocess_shell(
-            shlex.join([self.INSTALL_SCRIPT, str(cwd), python_version]),
+            shlex.join([str(self.INSTALL_SCRIPT), str(cwd), python_version]),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             # NOTE: We need to unset VIRTUAL_ENV to prevent uv from using it
@@ -72,13 +69,13 @@ class SandboxExecutor(Executor):
             exec_proc = await asyncio.create_subprocess_shell(
                 shlex.join(
                     [
-                        self.CONTY,
+                        CONTY_PATH,
                         "--bind",
                         str(cwd.absolute()),
                         str(cwd),
                         "--ro-bind",
-                        os.path.abspath(self.RUN_SCRIPT),
-                        os.path.expanduser(f"~/{self.RUN_SCRIPT}"),
+                        str(self.RUN_SCRIPT),
+                        os.path.expanduser(f"~/{self.RUN_SCRIPT.name}"),
                         # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
                         # We are using `uv` as the environment manager and program runner
                         "--ro-bind",
@@ -88,7 +85,7 @@ class SandboxExecutor(Executor):
                         "--ro-bind",
                         os.path.expanduser("~/.local/share/uv"),
                         os.path.expanduser("~/.local/share/uv"),
-                        f"./{self.RUN_SCRIPT}",
+                        f"./{self.RUN_SCRIPT.name}",
                         str(cwd),
                         str(cwd / program.entrypoint),
                         str(mem_limit_bytes),
