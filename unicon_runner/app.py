@@ -1,7 +1,7 @@
 import asyncio
 
-import pika  # type: ignore
-from pika.exchange_type import ExchangeType  # type: ignore
+import pika
+from pika.exchange_type import ExchangeType
 
 from unicon_runner.constants import (
     EXCHANGE_NAME,
