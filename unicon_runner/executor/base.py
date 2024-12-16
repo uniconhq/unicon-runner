@@ -47,7 +47,10 @@ class ExecutorCwd:
         return self._cwd
 
     def __exit__(self, type, value, traceback):
-        shutil.rmtree(self._cwd)
+        if (type, value, traceback) == (None, None, None):
+            # Only clean up if there was no exception when exiting the context
+            # Else we propagate the exception
+            shutil.rmtree(self._cwd)
 
 
 # list[(<file_path>, <file_content>, <is_executable>)]
