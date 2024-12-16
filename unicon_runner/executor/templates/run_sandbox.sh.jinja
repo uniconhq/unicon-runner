@@ -3,5 +3,5 @@
 {% block append %}
 # NOTE: This is a workaround to extract the exit code of the program executed in a `conty` sandbox
 exit_code=$?
-echo $exit_code > $1/exit_code
+echo $exit_code > "$(dirname $0)/exit_code"
 {% endblock append %}
