@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Change directory to the working directory
+cd "$(dirname "$0")"
+
+# Install required Python interpreter and dependencies
+uv -q venv --python {{ python_version }}
+uv -q add -r requirements.txt
+
+# NOTE: Memory limit is set in kilobytes
+# Reference: https://ss64.com/bash/ulimit.html
+ulimit -v {{ memory_limit_kb }}
+# NOTE: Exit code is preserved if process is does not exceed time limit
+# Reference: https://www.man7.org/linux/man-pages/man1/timeout.1.html
+timeout {{ time_limit }} uv -q run {{ entry_point }}
+
+{% block append %}
+{% endblock append %}

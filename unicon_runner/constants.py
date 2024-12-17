@@ -13,7 +13,6 @@ def _get_env_var(name: str, default: str | None = None, required: bool = True):
 
 
 RABBITMQ_URL: str = _get_env_var("RABBITMQ_URL")
-RUNNER_TYPE: str = _get_env_var("RUNNER_TYPE")
 CONTY_PATH: str = _get_env_var("CONTY_PATH")
 
 EXCHANGE_NAME = _get_env_var("EXCHANGE_NAME", "unicon")
