@@ -11,7 +11,7 @@ from pika.exchange_type import ExchangeType
 from unicon_runner.constants import EXCHANGE_NAME, RABBITMQ_URL, RESULT_QUEUE_NAME, TASK_QUEUE_NAME
 from unicon_runner.executor import create_executor
 from unicon_runner.executor.base import Executor, ExecutorType, ProgramResult
-from unicon_runner.job import Job, JobResult, Program
+from unicon_runner.models import Job, JobResult, Program
 
 app = typer.Typer()
 
@@ -24,9 +24,9 @@ def pull_job(
     run_job_and_push_result: Callable[[Job], Awaitable[None]],
 ) -> None:
     job = Job.model_validate_json(msg_body)
-    in_ch.basic_ack(delivery_tag=method.delivery_tag)
     # TODO: We are running async procedures in a blocking context. This is not ideal.
-    asyncio.run(run_job_and_push_result(job))  # type: ignore
+    asyncio.run(run_job_and_push_result(job=job))  # type: ignore
+    in_ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
 async def run_job_and_push_result(
@@ -45,7 +45,7 @@ async def run_job_and_push_result(
         results=[program_task.result() for program_task in program_tasks],
         **_tracking_fields,
     )
-    push_result(job_result)
+    push_result(job_result=job_result)  # type: ignore
 
 
 def push_result(out_ch: BlockingChannel, job_result: JobResult) -> None:
