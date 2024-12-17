@@ -5,10 +5,6 @@ from pathvalidate import is_valid_filename
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 
-class Language(str, Enum):
-    PYTHON = "PYTHON"
-
-
 class File(BaseModel):
     name: str
     content: str
@@ -19,6 +15,10 @@ class File(BaseModel):
         if not is_valid_filename(v):
             raise ValueError(f"{v} is an invalid file name")
         return v
+
+
+class Language(str, Enum):
+    PYTHON = "PYTHON"
 
 
 class ComputeContext(BaseModel):
@@ -42,6 +42,28 @@ class Program(BaseModel):
         return self
 
 
+class Status(str, Enum):
+    OK = "OK"
+    MLE = "MLE"
+    TLE = "TLE"
+    RTE = "RTE"
+    WA = "WA"
+
+
+class ProgramResult(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    stdout: str | None
+    stderr: str | None
+    status: Status | None
+
+
+class ExecutorResult(BaseModel):
+    exit_code: int
+    stdout: str
+    stderr: str
+
+
 class Job(BaseModel):
     # NOTE: This is needed to allow extra fields in a `Job` (also applied at the `Program` level)
     # These extra fields are essential in helping retain "tracking fields" sent from the task scheduler (backend)
@@ -53,7 +75,7 @@ class Job(BaseModel):
     programs: list[Program]
 
 
-class JobResult[ProgramResult](BaseModel):
+class JobResult(BaseModel):
     model_config = ConfigDict(extra="allow")  # For passthrough of tracking fields
 
     success: bool

@@ -5,37 +5,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict
-
-from unicon_runner.job import ComputeContext, Program
-
-
-class Status(str, Enum):
-    OK = "OK"
-    MLE = "MLE"
-    TLE = "TLE"
-    RTE = "RTE"
-    WA = "WA"
-
-
-class ExecutorType(str, Enum):
-    PODMAN = "podman"
-    UNSAFE = "unsafe"
-    SANDBOX = "sandbox"
-
-
-class ExecutorResult(BaseModel):
-    exit_code: int
-    stdout: str
-    stderr: str
-
-
-class ProgramResult(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    stdout: str | None
-    stderr: str | None
-    status: Status | None
+from unicon_runner.models import ComputeContext, ExecutorResult, Program, ProgramResult, Status
 
 
 class ExecutorCwd:
@@ -55,6 +25,12 @@ class ExecutorCwd:
 
 # list[(<file_path>, <file_content>, <is_executable>)]
 FileSystemMapping = list[tuple[Path, str, bool]]
+
+
+class ExecutorType(str, Enum):
+    PODMAN = "podman"
+    UNSAFE = "unsafe"
+    SANDBOX = "sandbox"
 
 
 class Executor(ABC):

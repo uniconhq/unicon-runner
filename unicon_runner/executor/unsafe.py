@@ -6,7 +6,7 @@ from pathlib import Path
 from jinja2 import Environment, PackageLoader, Template, select_autoescape
 
 from unicon_runner.executor.base import Executor, ExecutorResult, FileSystemMapping
-from unicon_runner.job import ComputeContext, Program
+from unicon_runner.models import ComputeContext, Program
 
 JINJA_ENV = Environment(
     loader=PackageLoader("unicon_runner.executor"), autoescape=select_autoescape()

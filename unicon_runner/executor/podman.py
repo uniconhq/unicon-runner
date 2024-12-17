@@ -6,7 +6,7 @@ from unicon_runner.executor.base import (
     ExecutorResult,
     FileSystemMapping,
 )
-from unicon_runner.job import ComputeContext, Program
+from unicon_runner.models import ComputeContext, Program
 
 
 class PodmanExecutor(Executor):
