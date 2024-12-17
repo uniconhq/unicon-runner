@@ -24,6 +24,9 @@ class SandboxExecutor(UnsafeExecutor):
     RUN_SCRIPT_TEMPLATE: Template = JINJA_ENV.get_template("run_sandbox.sh.jinja")
 
     async def _execute(self, _: str, __: Program, cwd: Path, ___: ComputeContext) -> ExecutorResult:
+        if not Path(CONTY_PATH).exists():
+            raise RuntimeError(f"Conty binary not found at {CONTY_PATH}!")
+
         # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
         # We are using `uv` as the environment manager and program runner
         uv_path = Path("~/.cargo/bin/uv").expanduser()
