@@ -4,7 +4,7 @@
 mkdir -p {{ exec_dir }}
 
 # Copy all files from the NFS staging directory to the execution directory
-cp -r {{ staging_dir }} {{ exec_dir }}
+cp -r {{ staging_dir }}/* {{ exec_dir }}
 
 # Run the job script
 {{ run_script }}
