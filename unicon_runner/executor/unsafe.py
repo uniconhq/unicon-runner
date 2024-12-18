@@ -1,16 +1,9 @@
-import asyncio
-import os
-import shlex
 from pathlib import Path
 
-from jinja2 import Environment, PackageLoader, Template, select_autoescape
+from jinja2 import Template
 
-from unicon_runner.executor.base import Executor, ExecutorResult, FileSystemMapping
+from unicon_runner.executor.base import JINJA_ENV, Executor, FileSystemMapping
 from unicon_runner.models import ComputeContext, Program
-
-JINJA_ENV = Environment(
-    loader=PackageLoader("unicon_runner.executor"), autoescape=select_autoescape()
-)
 
 
 class UnsafeExecutor(Executor):
@@ -50,15 +43,5 @@ class UnsafeExecutor(Executor):
             (self.ENTRYPOINT, run_script, True),
         ]
 
-    async def _execute(self, _: str, __: Program, cwd: Path, ___: ComputeContext) -> ExecutorResult:
-        proc = await asyncio.create_subprocess_shell(
-            shlex.join([str(cwd / self.ENTRYPOINT)]),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            # NOTE: We need to unset VIRTUAL_ENV to prevent uv from using it
-            env={**os.environ, "VIRTUAL_ENV": ""},
-        )
-
-        stdout, stderr = await proc.communicate()
-        exit_code = proc.returncode if proc.returncode is not None else 1
-        return ExecutorResult(exit_code=exit_code, stdout=stdout.decode(), stderr=stderr.decode())
+    def _cmd(self, cwd: Path) -> tuple[list[str], dict[str, str]]:
+        return [str(cwd / self.ENTRYPOINT)], {"VIRTUAL_ENV": ""}

@@ -1,3 +1,6 @@
+import asyncio
+import os
+import shlex
 import shutil
 import stat
 import uuid
@@ -5,7 +8,13 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
 
+from jinja2 import Environment, PackageLoader, select_autoescape
+
 from unicon_runner.models import ComputeContext, ExecutorResult, Program, ProgramResult, Status
+
+JINJA_ENV = Environment(
+    loader=PackageLoader("unicon_runner.executor"), autoescape=select_autoescape()
+)
 
 
 class ExecutorCwd:
@@ -34,8 +43,6 @@ class ExecutorType(str, Enum):
 
 
 class Executor(ABC):
-    on_slurm = False
-
     def __init__(self, root_dir: Path):
         self._root_dir = root_dir
 
@@ -49,10 +56,13 @@ class Executor(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def _execute(
-        self, id: str, program: Program, cwd: Path, context: ComputeContext
-    ) -> ExecutorResult:
+    def _cmd(self, cwd: Path) -> tuple[list[str], dict[str, str]]:
         raise NotImplementedError
+
+    async def _collect(self, proc: asyncio.subprocess.Process) -> ExecutorResult:
+        stdout, stderr = await proc.communicate()
+        exit_code = proc.returncode if proc.returncode is not None else 1
+        return ExecutorResult(exit_code=exit_code, stdout=stdout.decode(), stderr=stderr.decode())
 
     async def run(self, program: Program, context: ComputeContext) -> ProgramResult:
         _tracking_fields = program.model_extra or {}
@@ -65,7 +75,46 @@ class Executor(ABC):
                 if is_exec:
                     file_path.chmod(file_path.stat().st_mode | stat.S_IEXEC)
 
-            result = await self._execute(id, program, cwd, context)
+            cmd: list[str]
+            env_vars: dict[str, str]
+
+            if context.slurm:
+                # NOTE: For `slurm` execution, the working directory needs to be in NFS
+                # There will be 2 working directories:
+                # 1. NFS working directory (where the setup is done)
+                # 2. Slurm working directory (where the program is executed)
+                #   - This is hardcoded to `/tmp` for now
+                #   - A possible improvement is to introduce staging and execution directories
+                exec_dir = Path("/tmp") / id
+                prog_cmd, prog_env_vars = self._cmd(exec_dir)
+
+                # Assemble the script that copies files from NFS to Slurm working directory
+                slurm_script = JINJA_ENV.get_template("slurm.sh.jinja").render(
+                    staging_dir=str(cwd), exec_dir=str(exec_dir), run_script=shlex.join(prog_cmd)
+                )
+                slurm_script_path = cwd / "slurm.sh"
+                slurm_script_path.write_text(slurm_script)
+                slurm_script_path.chmod(slurm_script_path.stat().st_mode | stat.S_IEXEC)
+
+                slurm_env_vars_export_str = (
+                    ",".join([f"{key}={value}" for key, value in prog_env_vars.items()])
+                    if len(prog_env_vars) > 0
+                    else "NONE"
+                )
+
+                cmd = ["srun", "--export=", slurm_env_vars_export_str, str(slurm_script_path)]
+                env_vars = {}
+            else:
+                cmd, env_vars = self._cmd(cwd)
+
+            result = await self._collect(
+                await asyncio.create_subprocess_shell(
+                    shlex.join(cmd),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    env={**os.environ, **env_vars},
+                )
+            )
 
         match result.exit_code:
             case 137:
