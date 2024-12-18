@@ -90,19 +90,18 @@ class Executor(ABC):
 
                 # Assemble the script that copies files from NFS to Slurm working directory
                 slurm_script = JINJA_ENV.get_template("slurm.sh.jinja").render(
-                    staging_dir=str(cwd), exec_dir=str(exec_dir), run_script=shlex.join(prog_cmd)
+                    staging_dir=str(cwd),
+                    exec_dir=str(exec_dir),
+                    exec_export_env_vars="\n".join(
+                        [f"export {key}={value}" for key, value in prog_env_vars.items()]
+                    ),
+                    run_script=shlex.join(prog_cmd),
                 )
                 slurm_script_path = cwd / "slurm.sh"
                 slurm_script_path.write_text(slurm_script)
                 slurm_script_path.chmod(slurm_script_path.stat().st_mode | stat.S_IEXEC)
 
-                slurm_env_vars_export_str = (
-                    ",".join([f"{key}={value}" for key, value in prog_env_vars.items()])
-                    if len(prog_env_vars) > 0
-                    else "NONE"
-                )
-
-                cmd = ["srun", "--export=", slurm_env_vars_export_str, str(slurm_script_path)]
+                cmd = ["srun", str(slurm_script_path)]
                 env_vars = {}
             else:
                 cmd, env_vars = self._cmd(cwd)

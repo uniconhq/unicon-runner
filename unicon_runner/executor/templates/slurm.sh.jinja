@@ -6,5 +6,8 @@ mkdir -p {{ exec_dir }}
 # Copy all files from the NFS staging directory to the execution directory
 cp -r {{ staging_dir }}/* {{ exec_dir }}
 
+# Environment variables for program execution
+{{ exec_export_env_vars }}
+
 # Run the job script
 {{ run_script }}

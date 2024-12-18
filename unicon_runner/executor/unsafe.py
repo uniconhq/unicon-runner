@@ -44,4 +44,4 @@ class UnsafeExecutor(Executor):
         ]
 
     def _cmd(self, cwd: Path) -> tuple[list[str], dict[str, str]]:
-        return [str(cwd / self.ENTRYPOINT)], {"VIRTUAL_ENV": ""}
+        return [str(cwd / self.ENTRYPOINT)], {"VIRTUAL_ENV": "''"}
