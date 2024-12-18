@@ -41,8 +41,8 @@ class SandboxExecutor(UnsafeExecutor):
             "SANDBOX": "1",
             "SANDBOX_LEVEL": "1",
             "QUIET_MODE": "1",
-            # NOTE: We need to unset VIRTUAL_ENV to prevent uv from using it
-            "VIRTUAL_ENV": "",
+            # NOTE: We need to unset VIRTUAL_ENV to prevent uv from using the wrong base python interpreter
+            "VIRTUAL_ENV": "''",
         }
 
     async def _collect(self, proc: asyncio.subprocess.Process) -> ExecutorResult:

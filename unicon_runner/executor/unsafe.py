@@ -49,4 +49,5 @@ class UnsafeExecutor(Executor):
         ]
 
     def _cmd(self, cwd: Path) -> tuple[list[str], dict[str, str]]:
+        # NOTE: We need to unset VIRTUAL_ENV to prevent uv from using the wrong base python interpreter
         return [str(cwd / self.ENTRYPOINT)], {"VIRTUAL_ENV": "''"}
