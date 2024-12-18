@@ -36,9 +36,8 @@ class ExecutorType(str, Enum):
 class Executor(ABC):
     on_slurm = False
 
-    @property
-    def root_dir(self) -> Path:
-        return Path("/tmp" if self.on_slurm else "temp")
+    def __init__(self, root_dir: Path):
+        self._root_dir = root_dir
 
     @abstractmethod
     def get_filesystem_mapping(
@@ -58,7 +57,7 @@ class Executor(ABC):
     async def run(self, program: Program, context: ComputeContext) -> ProgramResult:
         _tracking_fields = program.model_extra or {}
         id: str = str(uuid.uuid4())  # Unique identifier for the program
-        with ExecutorCwd(self.root_dir, id) as cwd:
+        with ExecutorCwd(self._root_dir, id) as cwd:
             for path, content, is_exec in self.get_filesystem_mapping(program, context):
                 file_path = cwd / path
                 file_path.parent.mkdir(parents=True, exist_ok=True)

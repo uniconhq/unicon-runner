@@ -1,6 +1,8 @@
 import asyncio
 from collections.abc import Awaitable, Callable
 from functools import partial
+from pathlib import Path
+from typing import Annotated
 
 import pika
 import pika.spec
@@ -71,10 +73,21 @@ def init_mq() -> tuple[BlockingChannel, BlockingChannel]:
 
 
 @app.command()
-def start(exec_type: ExecutorType):
+def start(
+    exec_type: ExecutorType,
+    root_wd_dir: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            writable=True,
+            readable=True,
+            help="Root path for executor's working directory",
+        ),
+    ],
+) -> None:
     in_ch, out_ch = init_mq()
 
-    executor = create_executor(exec_type)
+    executor = create_executor(exec_type, root_wd_dir)
 
     in_ch.basic_qos(prefetch_count=1)
     in_ch.basic_consume(
