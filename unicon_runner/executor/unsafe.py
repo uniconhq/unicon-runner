@@ -2,6 +2,7 @@ from pathlib import Path
 
 from jinja2 import Template
 
+from unicon_runner.constants import DEFAULT_EXEC_PY_VERSION
 from unicon_runner.executor.base import JINJA_ENV, Executor, FileSystemMapping
 from unicon_runner.models import ComputeContext, Program
 
@@ -24,8 +25,12 @@ class UnsafeExecutor(Executor):
         mem_limit_kb: int = context.memory_limit_mb * 1024
         time_limit_secs: int = context.time_limit_secs * 1000
 
-        python_version: str = "3.11.9"
-        if context.extra_options:
+        python_version: str = DEFAULT_EXEC_PY_VERSION
+        if context.slurm:
+            # NOTE: We need to use the system python interpreter for slurm jobs
+            # This is because of filesystem restrictions in the slurm environment (more details in the docs)
+            python_version = "/usr/bin/python"
+        elif context.extra_options:
             python_version = context.extra_options.get("version", python_version)
 
         run_script = self.RUN_SCRIPT_TEMPLATE.render(

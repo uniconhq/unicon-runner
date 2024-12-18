@@ -18,3 +18,5 @@ CONTY_PATH: str = _get_env_var("CONTY_PATH")
 EXCHANGE_NAME = _get_env_var("EXCHANGE_NAME", "unicon")
 TASK_QUEUE_NAME = _get_env_var("WORK_QUEUE_NAME", "unicon.tasks")
 RESULT_QUEUE_NAME = _get_env_var("RESULT_QUEUE_NAME", "unicon.results")
+
+DEFAULT_EXEC_PY_VERSION = "3.11.9"
