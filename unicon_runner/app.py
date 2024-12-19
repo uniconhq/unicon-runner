@@ -121,7 +121,7 @@ def test(
     root_wd_dir: RootWorkingDirectory,
     job_file: Annotated[Path, typer.Argument(exists=True, readable=True)],
     slurm: bool = False,
-    slurm_flags: str | None = None,
+    slurm_opt: list[str] | None = None,
 ) -> None:
     # Dynamically set the slurm flag
     import json
@@ -129,6 +129,7 @@ def test(
     job_json = json.loads(job_file.read_text())
     if "context" in job_json:
         job_json["context"]["slurm"] = slurm
+        job_json["context"]["slurm_options"] = slurm_opt or []
 
     job = Job.model_validate(job_json)
     executor = create_executor(exec_type, root_wd_dir)

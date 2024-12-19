@@ -26,7 +26,8 @@ class ComputeContext(BaseModel):
     time_limit_secs: int
     memory_limit_mb: int
 
-    slurm: bool
+    slurm: bool = False
+    slurm_options: list[str] = []
 
     extra_options: dict[str, str] | None
 
