@@ -146,7 +146,7 @@ def test(
         prog_result = asyncio.run(_run_job(program))
 
         tbl = Table(title=f"Program Result #{i + 1}", highlight=True)
-        tbl.add_column("Status", style="magenta")
+        tbl.add_column("status", style="magenta")
         tbl.add_column("stdout")
         tbl.add_column("stderr", style="red")
         tbl.add_row(prog_result.status, prog_result.stdout, prog_result.stderr)
