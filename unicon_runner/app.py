@@ -75,24 +75,25 @@ def init_mq() -> tuple[BlockingChannel, BlockingChannel]:
     return in_ch, out_ch
 
 
+RootWorkingDirectory = Annotated[
+    Path,
+    typer.Argument(
+        exists=True,
+        writable=True,
+        readable=True,
+        help="Root path for executor's working directory",
+    ),
+]
+
+
 @app.command()
-def start(
-    exec_type: ExecutorType,
-    root_wd_dir: Annotated[
-        Path,
-        typer.Argument(
-            exists=True,
-            writable=True,
-            readable=True,
-            help="Root path for executor's working directory",
-        ),
-    ],
-) -> None:
+def start(exec_type: ExecutorType, root_wd_dir: RootWorkingDirectory) -> None:
     in_ch, out_ch = init_mq()
     logger.info("Initialized task and result queues")
 
     executor = create_executor(exec_type, root_wd_dir)
     logger.info(f"Created executor: [bold green]{executor.__class__.__name__}[/]")
+    logger.info(f"Root working directory: [bold green]{root_wd_dir.absolute()}[/]")
 
     in_ch.basic_qos(prefetch_count=1)
     in_ch.basic_consume(
@@ -112,6 +113,43 @@ def start(
         in_ch.start_consuming()  # NOTE: This is a blocking call (runs forever)
     except KeyboardInterrupt:
         in_ch.stop_consuming()
+
+
+@app.command()
+def test(
+    exec_type: ExecutorType,
+    root_wd_dir: RootWorkingDirectory,
+    job_file: Annotated[Path, typer.Argument(exists=True, readable=True)],
+    slurm: bool = False,
+    slurm_flags: str | None = None,
+) -> None:
+    # Dynamically set the slurm flag
+    import json
+
+    job_json = json.loads(job_file.read_text())
+    if "context" in job_json:
+        job_json["context"]["slurm"] = slurm
+
+    job = Job.model_validate(job_json)
+    executor = create_executor(exec_type, root_wd_dir)
+
+    from rich.console import Console
+    from rich.table import Table
+
+    _console = Console()
+
+    async def _run_job(program: Program) -> ProgramResult:
+        return await executor.run(program, job.context)
+
+    for i, program in enumerate(job.programs):
+        prog_result = asyncio.run(_run_job(program))
+
+        tbl = Table(title=f"Program Result #{i + 1}", highlight=True)
+        tbl.add_column("Status", style="magenta")
+        tbl.add_column("stdout")
+        tbl.add_column("stderr", style="red")
+        tbl.add_row(prog_result.status, prog_result.stdout, prog_result.stderr)
+        _console.print(tbl)
 
 
 if __name__ == "__main__":
