@@ -21,8 +21,8 @@
     ],
     "context": {
         "language": "PYTHON",
-        "memory_limit_mb": 100,
-        "time_limit_secs": 5,
+        "memory_limit_mb": 1000,
+        "time_limit_secs": 30,
         "extra_options": {
             "requirements": "polars"
         }
