@@ -25,7 +25,9 @@ def pull_job(
     msg_body: bytes,
     run_job_and_push_result: Callable[[Job], Awaitable[None]],
 ) -> None:
+    logger.info(f"Received message: {len(msg_body)} bytes")
     job = Job.model_validate_json(msg_body)
+    logger.info(f"Received job: {job.model_extra}")
     # TODO: We are running async procedures in a blocking context. This is not ideal.
     asyncio.run(run_job_and_push_result(job=job))  # type: ignore
     in_ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -51,6 +53,7 @@ async def run_job_and_push_result(
 
 
 def push_result(out_ch: BlockingChannel, job_result: JobResult) -> None:
+    logger.info(f"Pushed result: {job_result.model_extra}")
     out_ch.basic_publish(
         exchange=EXCHANGE_NAME, routing_key=RESULT_QUEUE_NAME, body=job_result.model_dump_json()
     )
@@ -86,8 +89,10 @@ def start(
     ],
 ) -> None:
     in_ch, out_ch = init_mq()
+    logger.info("Initialized task and result queues")
 
     executor = create_executor(exec_type, root_wd_dir)
+    logger.info(f"Created executor: [bold green]{executor.__class__.__name__}[/]")
 
     in_ch.basic_qos(prefetch_count=1)
     in_ch.basic_consume(
@@ -110,4 +115,19 @@ def start(
 
 
 if __name__ == "__main__":
+    import logging
+
+    from rich.logging import RichHandler
+
+    logging.basicConfig(
+        level="INFO",
+        format="[magenta]%(funcName)s[/] - %(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(markup=True)],
+    )
+    logging.getLogger("asyncio").setLevel(logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
+
+    logger = logging.getLogger("unicon_runner")
+
     app()

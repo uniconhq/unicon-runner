@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import shlex
 import shutil
@@ -11,6 +12,8 @@ from pathlib import Path
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from unicon_runner.models import ComputeContext, ExecutorResult, Program, ProgramResult, Status
+
+logger = logging.getLogger("unicon_runner")
 
 JINJA_ENV = Environment(
     loader=PackageLoader("unicon_runner.executor"), autoescape=select_autoescape()
@@ -69,6 +72,7 @@ class Executor(ABC):
         id: str = str(uuid.uuid4())  # Unique identifier for the program
         with ExecutorCwd(self._root_dir, id) as cwd:
             for path, content, is_exec in self.get_filesystem_mapping(program, context):
+                logger.info(f"Writing file: [magenta]{path}[/]")
                 file_path = cwd / path
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 file_path.write_text(content)
@@ -105,6 +109,9 @@ class Executor(ABC):
                 env_vars = {}
             else:
                 cmd, env_vars = self._cmd(cwd)
+
+            logger.info(f"Process command: {cmd}")
+            logger.info(f"Env vars: {env_vars}")
 
             result = await self._collect(
                 await asyncio.create_subprocess_shell(
