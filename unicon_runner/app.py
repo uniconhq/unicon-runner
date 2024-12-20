@@ -140,7 +140,9 @@ def test(
     _console = Console()
 
     async def _run_job(program: Program) -> ProgramResult:
-        return await executor.run(program, job.context)
+        # Since this is a test, we don't want to clean up the working directory
+        # This is so that we can easily inspect the files written and replay the execution
+        return await executor.run(program, job.context, cleanup=False)
 
     for i, program in enumerate(job.programs):
         prog_result = asyncio.run(_run_job(program))

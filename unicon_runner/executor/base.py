@@ -21,15 +21,17 @@ JINJA_ENV = Environment(
 
 
 class ExecutorCwd:
-    def __init__(self, root_dir: Path, id: str):
+    def __init__(self, root_dir: Path, id: str, cleanup: bool):
         self._cwd = root_dir / id
         self._cwd.mkdir(parents=True)
+
+        self._cleanup = cleanup
 
     def __enter__(self):
         return self._cwd
 
     def __exit__(self, type, value, traceback):
-        if (type, value, traceback) == (None, None, None):
+        if self._cleanup and (type, value, traceback) == (None, None, None):
             # Only clean up if there was no exception when exiting the context
             # Else we propagate the exception
             shutil.rmtree(self._cwd)
@@ -67,10 +69,12 @@ class Executor(ABC):
         exit_code = proc.returncode if proc.returncode is not None else 1
         return ExecutorResult(exit_code=exit_code, stdout=stdout.decode(), stderr=stderr.decode())
 
-    async def run(self, program: Program, context: ComputeContext) -> ProgramResult:
+    async def run(
+        self, program: Program, context: ComputeContext, cleanup: bool = True
+    ) -> ProgramResult:
         _tracking_fields = program.model_extra or {}
         id: str = str(uuid.uuid4())  # Unique identifier for the program
-        with ExecutorCwd(self._root_dir, id) as cwd:
+        with ExecutorCwd(self._root_dir, id, cleanup) as cwd:
             for path, content, is_exec in self.get_filesystem_mapping(program, context):
                 logger.info(f"Writing file: [magenta]{path}[/]")
                 file_path = cwd / path
