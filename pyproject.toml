@@ -11,6 +11,8 @@ dependencies = [
     "pika>=1.3.2",
     "python-dotenv>=1.0.1",
     "typer>=0.15.1",
+    "rich>=13.9.4",
+    "psutil>=6.1.1",
 ]
 
 [build-system]
@@ -21,6 +23,7 @@ build-backend = "hatchling.build"
 dev-dependencies = [
     "mypy>=1.11.2",
     "types-pika-ts>=1.3.0.20241203",
+    "types-psutil>=6.1.0.20241102",
 ]
 
 [tool.ruff]

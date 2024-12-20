@@ -1,3 +1,7 @@
+import asyncio
+import logging
+import os
+import shlex
 import shutil
 import stat
 import uuid
@@ -5,19 +9,37 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
 
+import psutil
+from jinja2 import Environment, PackageLoader, select_autoescape
+
 from unicon_runner.models import ComputeContext, ExecutorResult, Program, ProgramResult, Status
+
+logger = logging.getLogger("unicon_runner")
+
+JINJA_ENV = Environment(
+    loader=PackageLoader("unicon_runner.executor"), autoescape=select_autoescape()
+)
+
+
+def is_mounted_on_nfs(path: Path) -> bool:
+    """Check if the given path is mounted on an NFS filesystem"""
+    dev_no: int = os.stat(path).st_dev
+    nfs_partitions = [p for p in psutil.disk_partitions(all=True) if p.fstype == "nfs"]
+    return any(os.lstat(nfs_p.mountpoint).st_dev == dev_no for nfs_p in nfs_partitions)
 
 
 class ExecutorCwd:
-    def __init__(self, root_dir: Path, id: str):
+    def __init__(self, root_dir: Path, id: str, cleanup: bool):
         self._cwd = root_dir / id
         self._cwd.mkdir(parents=True)
+
+        self._cleanup = cleanup
 
     def __enter__(self):
         return self._cwd
 
     def __exit__(self, type, value, traceback):
-        if (type, value, traceback) == (None, None, None):
+        if self._cleanup and (type, value, traceback) == (None, None, None):
             # Only clean up if there was no exception when exiting the context
             # Else we propagate the exception
             shutil.rmtree(self._cwd)
@@ -34,11 +56,8 @@ class ExecutorType(str, Enum):
 
 
 class Executor(ABC):
-    on_slurm = False
-
-    @property
-    def root_dir(self) -> Path:
-        return Path("/tmp" if self.on_slurm else "temp")
+    def __init__(self, root_dir: Path):
+        self._root_dir = root_dir
 
     @abstractmethod
     def get_filesystem_mapping(
@@ -50,23 +69,76 @@ class Executor(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def _execute(
-        self, id: str, program: Program, cwd: Path, context: ComputeContext
-    ) -> ExecutorResult:
+    def _cmd(self, cwd: Path) -> tuple[list[str], dict[str, str]]:
         raise NotImplementedError
 
-    async def run(self, program: Program, context: ComputeContext) -> ProgramResult:
+    async def _collect(self, proc: asyncio.subprocess.Process) -> ExecutorResult:
+        stdout, stderr = await proc.communicate()
+        exit_code = proc.returncode if proc.returncode is not None else 1
+        return ExecutorResult(exit_code=exit_code, stdout=stdout.decode(), stderr=stderr.decode())
+
+    async def run(
+        self, program: Program, context: ComputeContext, cleanup: bool = True
+    ) -> ProgramResult:
+        if context.slurm and not is_mounted_on_nfs(self._root_dir):
+            # NOTE: We assume that as long as the working directory is on **any** NFS,
+            # all nodes in the cluster will have access to it
+            raise RuntimeError("Cannot run slurm jobs as root working directory is not on NFS")
+
         _tracking_fields = program.model_extra or {}
         id: str = str(uuid.uuid4())  # Unique identifier for the program
-        with ExecutorCwd(self.root_dir, id) as cwd:
+        with ExecutorCwd(self._root_dir, id, cleanup) as cwd:
             for path, content, is_exec in self.get_filesystem_mapping(program, context):
+                logger.info(f"Writing file: [magenta]{path}[/]")
                 file_path = cwd / path
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 file_path.write_text(content)
                 if is_exec:
                     file_path.chmod(file_path.stat().st_mode | stat.S_IEXEC)
 
-            result = await self._execute(id, program, cwd, context)
+            cmd: list[str]
+            env_vars: dict[str, str]
+
+            if context.slurm:
+                # NOTE: For `slurm` execution, the working directory needs to be in NFS
+                # There will be 2 working directories:
+                # 1. NFS working directory (where the setup is done)
+                # 2. Slurm working directory (where the program is executed)
+                #   - This is hardcoded to `/tmp` for now
+                #   - A possible improvement is to introduce staging and execution directories
+                exec_dir = Path("/tmp") / id
+                prog_cmd, prog_env_vars = self._cmd(exec_dir)
+                logger.info(f"Program command: {prog_cmd}")
+
+                # Assemble the script that copies files from NFS to Slurm working directory
+                slurm_script = JINJA_ENV.get_template("slurm.sh.jinja").render(
+                    staging_dir=str(cwd),
+                    exec_dir=str(exec_dir),
+                    exec_export_env_vars="\n".join(
+                        [f"export {key}={value}" for key, value in prog_env_vars.items()]
+                    ),
+                    run_script=shlex.join(prog_cmd),
+                )
+                slurm_script_path = cwd / "slurm.sh"
+                slurm_script_path.write_text(slurm_script)
+                slurm_script_path.chmod(slurm_script_path.stat().st_mode | stat.S_IEXEC)
+
+                cmd = ["srun", *context.slurm_options, str(slurm_script_path)]
+                env_vars = {}
+            else:
+                cmd, env_vars = self._cmd(cwd)
+
+            logger.info(f"Process command: {cmd}")
+            logger.info(f"Env variables: {env_vars}")
+
+            result = await self._collect(
+                await asyncio.create_subprocess_shell(
+                    shlex.join(cmd),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    env={**os.environ, **env_vars},
+                )
+            )
 
         match result.exit_code:
             case 137:

@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 
 # Install required Python interpreter and dependencies
 uv -q venv --python {{ python_version }}
-uv -q add -r requirements.txt
+uv -q --no-cache add -r requirements.txt
 
 # NOTE: Memory limit is set in kilobytes
 # Reference: https://ss64.com/bash/ulimit.html
