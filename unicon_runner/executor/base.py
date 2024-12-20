@@ -77,14 +77,16 @@ class Executor(ABC):
         exit_code = proc.returncode if proc.returncode is not None else 1
         return ExecutorResult(exit_code=exit_code, stdout=stdout.decode(), stderr=stderr.decode())
 
+    def is_compatible(self, context: ComputeContext) -> tuple[bool, str]:
+        # NOTE: We assume that as long as the working directory is on **any** NFS,
+        # all nodes in the cluster will have access to it
+        if context.slurm and not is_mounted_on_nfs(self._root_dir):
+            return False, "Cannot run slurm job as working directory is not on NFS"
+        return True, ""
+
     async def run(
         self, program: Program, context: ComputeContext, cleanup: bool = True
     ) -> ProgramResult:
-        if context.slurm and not is_mounted_on_nfs(self._root_dir):
-            # NOTE: We assume that as long as the working directory is on **any** NFS,
-            # all nodes in the cluster will have access to it
-            raise RuntimeError("Cannot run slurm jobs as root working directory is not on NFS")
-
         _tracking_fields = program.model_extra or {}
         id: str = str(uuid.uuid4())  # Unique identifier for the program
         with ExecutorWorkspace(self._root_dir, id, cleanup) as workspace:

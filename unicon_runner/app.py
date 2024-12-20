@@ -28,6 +28,9 @@ async def _run_job_async(executor: Executor, job: Job) -> JobResult:
 
 
 def _run_job(executor: Executor, job: Job) -> JobResult:
+    compatible, reason = executor.is_compatible(job.context)
+    if not compatible:
+        return JobResult(success=False, error=reason, results=[], **job.model_extra)
     return asyncio.run(_run_job_async(executor, job))
 
 
@@ -50,7 +53,11 @@ def exec_pipeline(
         exchange=EXCHANGE_NAME, routing_key=RESULT_QUEUE_NAME, body=result.model_dump_json()
     )
 
-    in_ch.basic_ack(delivery_tag=method.delivery_tag)
+    if not result.success:
+        # Requeue the message if the executor failed to run the job
+        in_ch.basic_nack(delivery_tag=method.delivery_tag)
+    else:
+        in_ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
 def init_mq() -> tuple[BlockingChannel, BlockingChannel]:
