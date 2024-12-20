@@ -1,10 +1,35 @@
 # Unicon 🦄 Runner
 
-Starting the runner and connecting to the work/task queue:
+Starting a long-running process that listens to the task queue:
 
 ```bash
-RABBITMQ_URL="<ampq-url>" EXECUTOR_TYPE="[podman | sandbox | unsafe]" uv run unicon-runner/app.py
+uv run unicon_runner/app.py \
+    start [unsafe | sandbox | podman] <root-working-dir>
 ```
+> [!NOTE]
+`RABBITMQ_URL` needs to be set either in the `.env` file or as an environment variable.
+
+> `<root-working-dir>` is the root directory where working directories for each program execution will be created. This directory should be writable by the user running the runner.
+
+Test the runner with a sample program:
+
+```bash
+uv run unicon_runner/app.py \
+    test [unsafe | sandbox | podman] <root-working-dir> \
+    <job-json-file> \
+    [--slurm] \
+    [--slurm_opt <slurm-option>]
+
+# Example of running a job with the sandbox executor that 
+# requires runtime dependencies on a Slurm cluster and (also a GPU just for fun)
+uv run unicon_runner/app.py \
+    test sandbox ./temp \
+    examples/runtime_deps.json \
+    --slurm \
+    --slurm_opt "--gpus=1"
+```
+
+> Example job files can be found in the `/examples` directory.
 
 ## Executors
 
