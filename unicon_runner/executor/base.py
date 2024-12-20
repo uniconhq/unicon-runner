@@ -95,6 +95,7 @@ class Executor(ABC):
                 #   - A possible improvement is to introduce staging and execution directories
                 exec_dir = Path("/tmp") / id
                 prog_cmd, prog_env_vars = self._cmd(exec_dir)
+                logger.info(f"Program command: {prog_cmd}")
 
                 # Assemble the script that copies files from NFS to Slurm working directory
                 slurm_script = JINJA_ENV.get_template("slurm.sh.jinja").render(
@@ -115,7 +116,7 @@ class Executor(ABC):
                 cmd, env_vars = self._cmd(cwd)
 
             logger.info(f"Process command: {cmd}")
-            logger.info(f"Env vars: {env_vars}")
+            logger.info(f"Env variables: {env_vars}")
 
             result = await self._collect(
                 await asyncio.create_subprocess_shell(
