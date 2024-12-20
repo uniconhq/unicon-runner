@@ -1,5 +1,4 @@
 import asyncio
-from collections.abc import Awaitable, Callable
 from functools import partial
 from pathlib import Path
 from typing import Annotated
@@ -18,45 +17,40 @@ from unicon_runner.models import Job, JobResult, Program
 app = typer.Typer()
 
 
-def pull_job(
+async def _run_job_async(executor: Executor, job: Job) -> JobResult:
+    _tracking_fields = job.model_extra or {}
+    async with asyncio.TaskGroup() as tg:
+        program_tasks: list[asyncio.Task[ProgramResult]] = [
+            tg.create_task(executor.run(program, job.context)) for program in job.programs
+        ]
+    program_results = [program_task.result() for program_task in program_tasks]
+    return JobResult(success=True, error=None, results=program_results, **_tracking_fields)
+
+
+def _run_job(executor: Executor, job: Job) -> JobResult:
+    return asyncio.run(_run_job_async(executor, job))
+
+
+def exec_pipeline(
     in_ch: BlockingChannel,
     method: pika.spec.Basic.Deliver,
     _: pika.spec.BasicProperties,
     msg_body: bytes,
-    run_job_and_push_result: Callable[[Job], Awaitable[None]],
+    out_ch: BlockingChannel,
+    executor: Executor,
 ) -> None:
     logger.info(f"Received message: {len(msg_body)} bytes")
     job = Job.model_validate_json(msg_body)
     logger.info(f"Received job: {job.model_extra}")
-    # TODO: We are running async procedures in a blocking context. This is not ideal.
-    asyncio.run(run_job_and_push_result(job=job))  # type: ignore
-    in_ch.basic_ack(delivery_tag=method.delivery_tag)
 
+    result = _run_job(executor, job)
 
-async def run_job_and_push_result(
-    push_result: Callable[[JobResult], None], executor: Executor, job: Job
-) -> None:
-    async def _run_program(program: Program) -> ProgramResult:
-        return await executor.run(program, job.context)
-
-    async with asyncio.TaskGroup() as tg:
-        program_tasks = [tg.create_task(_run_program(program)) for program in job.programs]
-
-    _tracking_fields = job.model_extra or {}
-    job_result = JobResult(
-        success=True,
-        error=None,
-        results=[program_task.result() for program_task in program_tasks],
-        **_tracking_fields,
-    )
-    push_result(job_result=job_result)  # type: ignore
-
-
-def push_result(out_ch: BlockingChannel, job_result: JobResult) -> None:
-    logger.info(f"Pushed result: {job_result.model_extra}")
+    logger.info(f"Pushing result: {result.model_extra}")
     out_ch.basic_publish(
-        exchange=EXCHANGE_NAME, routing_key=RESULT_QUEUE_NAME, body=job_result.model_dump_json()
+        exchange=EXCHANGE_NAME, routing_key=RESULT_QUEUE_NAME, body=result.model_dump_json()
     )
+
+    in_ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
 def init_mq() -> tuple[BlockingChannel, BlockingChannel]:
@@ -98,14 +92,7 @@ def start(exec_type: ExecutorType, root_wd_dir: RootWorkingDirectory) -> None:
     in_ch.basic_qos(prefetch_count=1)
     in_ch.basic_consume(
         TASK_QUEUE_NAME,
-        on_message_callback=partial(
-            pull_job,
-            run_job_and_push_result=partial(
-                run_job_and_push_result,
-                push_result=partial(push_result, out_ch=out_ch),
-                executor=executor,
-            ),
-        ),
+        on_message_callback=partial(exec_pipeline, out_ch=out_ch, executor=executor),
         auto_ack=False,
     )
 
