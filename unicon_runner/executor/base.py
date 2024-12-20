@@ -83,7 +83,7 @@ class Executor(ABC):
         if context.slurm and not is_mounted_on_nfs(self._root_dir):
             # NOTE: We assume that as long as the working directory is on **any** NFS,
             # all nodes in the cluster will have access to it
-            raise RuntimeError("Cannot run slurm jobs as the working directory is not on NFS")
+            raise RuntimeError("Cannot run slurm jobs as root working directory is not on NFS")
 
         _tracking_fields = program.model_extra or {}
         id: str = str(uuid.uuid4())  # Unique identifier for the program
