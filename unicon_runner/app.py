@@ -54,6 +54,9 @@ def exec_pipeline(
 
 
 def init_mq() -> tuple[BlockingChannel, BlockingChannel]:
+    if RABBITMQ_URL is None:
+        raise RuntimeError("RABBITMQ_URL environment variable not defined")
+
     conn = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
 
     in_ch, out_ch = conn.channel(), conn.channel()
