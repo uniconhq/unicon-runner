@@ -28,7 +28,7 @@ def is_mounted_on_nfs(path: Path) -> bool:
     return any(os.lstat(nfs_p.mountpoint).st_dev == dev_no for nfs_p in nfs_partitions)
 
 
-class ExecutorCwd:
+class ExecutorWorkspace:
     def __init__(self, root_dir: Path, id: str, cleanup: bool):
         self._cwd = root_dir / id
         self._cwd.mkdir(parents=True)
@@ -41,7 +41,7 @@ class ExecutorCwd:
     def __exit__(self, type, value, traceback):
         if self._cleanup and (type, value, traceback) == (None, None, None):
             # Only clean up if there was no exception when exiting the context
-            # Else we propagate the exception
+            # and if the workspace set to be cleaned up
             shutil.rmtree(self._cwd)
 
 
@@ -87,10 +87,10 @@ class Executor(ABC):
 
         _tracking_fields = program.model_extra or {}
         id: str = str(uuid.uuid4())  # Unique identifier for the program
-        with ExecutorCwd(self._root_dir, id, cleanup) as cwd:
+        with ExecutorWorkspace(self._root_dir, id, cleanup) as workspace:
             for path, content, is_exec in self.get_filesystem_mapping(program, context):
                 logger.info(f"Writing file: [magenta]{path}[/]")
-                file_path = cwd / path
+                file_path = workspace / path
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 file_path.write_text(content)
                 if is_exec:
@@ -112,21 +112,21 @@ class Executor(ABC):
 
                 # Assemble the script that copies files from NFS to Slurm working directory
                 slurm_script = JINJA_ENV.get_template("slurm.sh.jinja").render(
-                    staging_dir=str(cwd),
+                    staging_dir=str(workspace),
                     exec_dir=str(exec_dir),
                     exec_export_env_vars="\n".join(
                         [f"export {key}={value}" for key, value in prog_env_vars.items()]
                     ),
                     run_script=shlex.join(prog_cmd),
                 )
-                slurm_script_path = cwd / "slurm.sh"
+                slurm_script_path = workspace / "slurm.sh"
                 slurm_script_path.write_text(slurm_script)
                 slurm_script_path.chmod(slurm_script_path.stat().st_mode | stat.S_IEXEC)
 
                 cmd = ["srun", *context.slurm_options, str(slurm_script_path)]
                 env_vars = {}
             else:
-                cmd, env_vars = self._cmd(cwd)
+                cmd, env_vars = self._cmd(workspace)
 
             logger.info(f"Process command: {cmd}")
             logger.info(f"Env variables: {env_vars}")
