@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
 
+import psutil
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from unicon_runner.models import ComputeContext, ExecutorResult, Program, ProgramResult, Status
@@ -18,6 +19,13 @@ logger = logging.getLogger("unicon_runner")
 JINJA_ENV = Environment(
     loader=PackageLoader("unicon_runner.executor"), autoescape=select_autoescape()
 )
+
+
+def is_mounted_on_nfs(path: Path) -> bool:
+    """Check if the given path is mounted on an NFS filesystem"""
+    dev_no: int = os.stat(path).st_dev
+    nfs_partitions = [p for p in psutil.disk_partitions(all=True) if p.fstype == "nfs"]
+    return any(os.lstat(nfs_p.mountpoint).st_dev == dev_no for nfs_p in nfs_partitions)
 
 
 class ExecutorCwd:
@@ -72,6 +80,11 @@ class Executor(ABC):
     async def run(
         self, program: Program, context: ComputeContext, cleanup: bool = True
     ) -> ProgramResult:
+        if context.slurm and not is_mounted_on_nfs(self._root_dir):
+            # NOTE: We assume that as long as the working directory is on **any** NFS,
+            # all nodes in the cluster will have access to it
+            raise RuntimeError("Cannot run slurm jobs as the working directory is not on NFS")
+
         _tracking_fields = program.model_extra or {}
         id: str = str(uuid.uuid4())  # Unique identifier for the program
         with ExecutorCwd(self._root_dir, id, cleanup) as cwd:
