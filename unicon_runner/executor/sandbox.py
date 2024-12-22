@@ -16,9 +16,15 @@ class SandboxExecutor(UnsafeExecutor):
 
     RUN_SCRIPT_TEMPLATE: Template = JINJA_ENV.get_template("run_sandbox.sh.jinja")
 
+    def __init__(self, root_dir: Path):
+        if CONTY_PATH is None or not Path(CONTY_PATH).exists():
+            raise RuntimeError(
+                "Conty binary not found! Please verify the CONTY_PATH environment variable."
+            )
+        super().__init__(root_dir)
+
     def _cmd(self, cwd: Path) -> tuple[list[str], dict[str, str]]:
-        # if not Path(CONTY_PATH).exists():
-        #     raise RuntimeError(f"Conty binary not found at {CONTY_PATH}!")
+        assert CONTY_PATH is not None
 
         # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
         # We are using `uv` as the environment manager and program runner
