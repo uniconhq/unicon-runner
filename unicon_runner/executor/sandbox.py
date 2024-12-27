@@ -47,6 +47,8 @@ class SandboxExecutor(UnsafeExecutor):
             "SANDBOX": "1",
             "SANDBOX_LEVEL": "1",
             "QUIET_MODE": "1",
+            # NOTE: `conty` installs NVIDIA drivers in the sandbox, so we need to disable it
+            "NVIDIA_HANDLER": "-1",
             # NOTE: We need to unset VIRTUAL_ENV to prevent uv from using the wrong base python interpreter
             "VIRTUAL_ENV": "''",
         }
