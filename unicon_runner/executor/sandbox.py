@@ -39,7 +39,7 @@ class SandboxExecutor(UnsafeExecutor):
             "--ro-bind", *([str(uv_path)] * 2),
             "--ro-bind", *([str(uv_cache_path)] * 2),
             # R/W bind to the root working directory
-            "--bind", *([str(cwd.parents[0])]),
+            "--bind", *([str(cwd.parents[0])] * 2),
             # NOTE: Mount `procfs` to allow access to process information
             # This seems be required for GPU workloads
             "--proc", "/proc",
