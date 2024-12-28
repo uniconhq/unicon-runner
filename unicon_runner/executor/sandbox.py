@@ -29,15 +29,17 @@ class SandboxExecutor(UnsafeExecutor):
         # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
         # We are using `uv` as the environment manager and program runner
         uv_path = Path("~/.cargo/bin/uv").expanduser()
-        # NOTE: We need to bind the uv cache folder to access uv-managed python executables
-        uv_cache_path = Path("~/.local/share/uv").expanduser()
+        # NOTE: We need to bind the uv app state folder to access uv-managed python executables
+        uv_app_state_path = Path("~/.local/share/uv").expanduser()
+        uv_cache_path = Path("~/.cache/uv").expanduser()
 
         # fmt: off
         return [
             CONTY_PATH,
             "--ro-bind", *(["/"] * 2),
             "--ro-bind", *([str(uv_path)] * 2),
-            "--ro-bind", *([str(uv_cache_path)] * 2),
+            "--ro-bind", *([str(uv_app_state_path)] * 2),
+            "--bind", *([str(uv_cache_path)] * 2),
             # R/W bind to the root working directory
             "--bind", *([str(cwd.parents[0])] * 2),
             # NOTE: Mount `procfs` to allow access to process information
