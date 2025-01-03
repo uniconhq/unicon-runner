@@ -26,9 +26,9 @@ class SandboxExecutor(UnsafeExecutor):
     def _cmd(self, cwd: Path) -> tuple[list[str], dict[str, str]]:
         assert CONTY_PATH is not None
 
-        # NOTE: `uv` binary is assumed to be stored under `~/.cargo/bin/`
+        # NOTE: `uv` binary is assumed to be stored under `~/.local/bin/`
         # We are using `uv` as the environment manager and program runner
-        uv_path = Path("~/.cargo/bin/uv").expanduser()
+        uv_path = Path("~/.local/bin/uv").expanduser()
         # NOTE: We need to bind the uv app state folder to access uv-managed python executables
         uv_app_state_path = Path("~/.local/share/uv").expanduser()
         uv_cache_path = Path("~/.cache/uv").expanduser()
