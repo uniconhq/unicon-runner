@@ -1,21 +1,12 @@
 import asyncio
 from pathlib import Path
 
-from jinja2 import Template
-
 from unicon_runner.constants import CONTY_PATH
-from unicon_runner.executor.base import JINJA_ENV, ExecutorResult
+from unicon_runner.executor.base import ExecutorResult
 from unicon_runner.executor.unsafe import UnsafeExecutor
 
 
 class SandboxExecutor(UnsafeExecutor):
-    on_slurm = True
-
-    # Mounting sometimes fails if we try to spawn multiple sandboxes on xlog.
-    lock = asyncio.Lock()
-
-    RUN_SCRIPT_TEMPLATE: Template = JINJA_ENV.get_template("run_sandbox.sh.jinja")
-
     def __init__(self, root_dir: Path):
         if CONTY_PATH is None or not Path(CONTY_PATH).exists():
             raise RuntimeError(
