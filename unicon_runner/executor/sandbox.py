@@ -1,8 +1,6 @@
-import asyncio
 from pathlib import Path
 
 from unicon_runner.constants import CONTY_PATH
-from unicon_runner.executor.base import ExecutorResult
 from unicon_runner.executor.unsafe import UnsafeExecutor
 
 
@@ -46,15 +44,3 @@ class SandboxExecutor(UnsafeExecutor):
             "VIRTUAL_ENV": "''",
         }
         # fmt: off
-
-    async def _collect(self, proc: asyncio.subprocess.Process) -> ExecutorResult:
-        stdout, stderr = await proc.communicate()
-
-        exit_code_file = self._root_dir / "exit_code"
-        if not exit_code_file.exists():
-            exit_code = 1
-        else:
-            with open(exit_code_file) as f:
-                exit_code = int(f.read())
-
-        return ExecutorResult(exit_code=exit_code, stdout=stdout.decode(), stderr=stderr.decode())
