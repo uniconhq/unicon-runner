@@ -1,15 +1,23 @@
+import logging
+import stat
 from pathlib import Path
 
-from unicon_runner.constants import CONTY_PATH
+from unicon_runner.constants import CONTY_DOWNLOAD_URL, CONTY_PATH
 from unicon_runner.executor.unsafe import UnsafeExecutor
+from unicon_runner.helpers import download_file
+
+logger = logging.getLogger("unicon_runner")
 
 
 class SandboxExecutor(UnsafeExecutor):
     def __init__(self, root_dir: Path):
-        if CONTY_PATH is None or not Path(CONTY_PATH).exists():
-            raise RuntimeError(
-                "Conty binary not found! Please verify the CONTY_PATH environment variable."
-            )
+        if (conty_bin := Path(CONTY_PATH)).exists():
+            logger.info("`conty` binary not found, downloading...")
+            if download_file(CONTY_DOWNLOAD_URL, conty_bin, overwrite=True) is False:
+                raise RuntimeError(f"Failed to download `conty` binary from {CONTY_DOWNLOAD_URL}")
+            # `chmod +x` the downloaded binary
+            conty_bin.chmod(conty_bin.stat().st_mode | stat.S_IEXEC)
+
         super().__init__(root_dir)
 
     def _cmd(self, cwd: Path) -> tuple[list[str], dict[str, str]]:
