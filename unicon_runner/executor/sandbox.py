@@ -11,7 +11,7 @@ logger = logging.getLogger("unicon_runner")
 
 class SandboxExecutor(UnsafeExecutor):
     def __init__(self, root_dir: Path):
-        if (conty_bin := Path(CONTY_PATH)).exists():
+        if not (conty_bin := Path(CONTY_PATH)).exists():
             logger.info("`conty` binary not found, downloading...")
             if download_file(CONTY_DOWNLOAD_URL, conty_bin, overwrite=True) is False:
                 raise RuntimeError(f"Failed to download `conty` binary from {CONTY_DOWNLOAD_URL}")
