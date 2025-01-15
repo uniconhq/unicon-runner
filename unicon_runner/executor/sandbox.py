@@ -1,4 +1,5 @@
 import logging
+import os
 import stat
 from pathlib import Path
 
@@ -32,7 +33,7 @@ class SandboxExecutor(UnsafeExecutor):
 
         # fmt: off
         return [
-            CONTY_PATH,
+            os.path.abspath(CONTY_PATH),
             "--ro-bind", *(["/"] * 2),
             "--ro-bind", *([str(uv_path)] * 2),
             "--ro-bind", *([str(uv_app_state_path)] * 2),
