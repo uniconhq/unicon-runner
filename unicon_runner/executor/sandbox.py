@@ -1,5 +1,4 @@
 import logging
-import os
 import stat
 from pathlib import Path
 
@@ -19,11 +18,10 @@ class SandboxExecutor(UnsafeExecutor):
             # `chmod +x` the downloaded binary
             conty_bin.chmod(conty_bin.stat().st_mode | stat.S_IEXEC)
 
+        self._conty_bin: Path = conty_bin
         super().__init__(root_dir)
 
     def _cmd(self, cwd: Path) -> tuple[list[str], dict[str, str]]:
-        assert CONTY_PATH is not None
-
         # NOTE: `uv` binary is assumed to be stored under `~/.local/bin/`
         # We are using `uv` as the environment manager and program runner
         uv_path = Path("~/.local/bin/uv").expanduser()
@@ -33,7 +31,7 @@ class SandboxExecutor(UnsafeExecutor):
 
         # fmt: off
         return [
-            os.path.abspath(CONTY_PATH),
+            str(self._conty_bin.absolute()),
             "--ro-bind", *(["/"] * 2),
             "--ro-bind", *([str(uv_path)] * 2),
             "--ro-bind", *([str(uv_app_state_path)] * 2),
