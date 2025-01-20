@@ -45,8 +45,11 @@ class ExecutorWorkspace:
             shutil.rmtree(self._cwd)
 
 
-# list[(<file_path>, <file_content>, <is_executable>)]
+# [(<file_path>, <file_content>, <is_executable>)]
 FileSystemMapping = list[tuple[Path, str, bool]]
+
+# (cmd, env_vars)
+ExecutorCmd = tuple[list[str], dict[str, str]]
 
 
 class ExecutorType(str, Enum):
@@ -69,7 +72,7 @@ class Executor(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _cmd(self, cwd: Path) -> tuple[list[str], dict[str, str]]:
+    def _cmd(self, cwd: Path, program: Program, context: ComputeContext) -> ExecutorCmd:
         raise NotImplementedError
 
     async def _collect(self, proc: asyncio.subprocess.Process) -> ExecutorResult:
@@ -109,7 +112,7 @@ class Executor(ABC):
                 #   - This is hardcoded to `/tmp` for now
                 #   - A possible improvement is to introduce staging and execution directories
                 exec_dir = Path("/tmp") / id
-                prog_cmd, prog_env_vars = self._cmd(exec_dir)
+                prog_cmd, prog_env_vars = self._cmd(exec_dir, program, context)
                 logger.info(f"Program command: {prog_cmd}")
 
                 # Assemble the script that copies files from NFS to Slurm working directory
@@ -130,7 +133,7 @@ class Executor(ABC):
                 cmd = ["srun", "--quiet", *context.slurm_options, str(slurm_script_path)]
                 env_vars = {}
             else:
-                cmd, env_vars = self._cmd(workspace)
+                cmd, env_vars = self._cmd(workspace, program, context)
 
             logger.info(f"Process command: {cmd}")
             logger.info(f"Env variables: {env_vars}")

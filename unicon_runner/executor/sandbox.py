@@ -3,6 +3,7 @@ import stat
 from pathlib import Path
 
 from unicon_runner.constants import CONTY_DOWNLOAD_URL, CONTY_PATH
+from unicon_runner.executor.base import ExecutorCmd
 from unicon_runner.executor.unsafe import UnsafeExecutor
 from unicon_runner.helpers import download_file
 
@@ -21,7 +22,7 @@ class SandboxExecutor(UnsafeExecutor):
         self._conty_bin: Path = conty_bin
         super().__init__(root_dir)
 
-    def _cmd(self, cwd: Path) -> tuple[list[str], dict[str, str]]:
+    def _cmd(self, cwd: Path, *_unused) -> ExecutorCmd:
         # NOTE: `uv` binary is assumed to be stored under `~/.local/bin/`
         # We are using `uv` as the environment manager and program runner
         uv_path = Path("~/.local/bin/uv").expanduser()

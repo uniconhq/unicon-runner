@@ -3,7 +3,7 @@ from pathlib import Path
 from jinja2 import Template
 
 from unicon_runner.constants import DEFAULT_EXEC_PY_VERSION
-from unicon_runner.executor.base import JINJA_ENV, Executor, FileSystemMapping
+from unicon_runner.executor.base import JINJA_ENV, Executor, ExecutorCmd, FileSystemMapping
 from unicon_runner.models import ComputeContext, Program
 
 
@@ -22,9 +22,6 @@ class UnsafeExecutor(Executor):
             context.extra_options.get("requirements", "") if context.extra_options else ""
         )
 
-        mem_limit_kb: int = context.memory_limit_mb * 1024
-        time_limit_secs: int = context.time_limit_secs * 1000
-
         python_version: str = DEFAULT_EXEC_PY_VERSION
         if context.slurm:
             # NOTE: We need to use the system python interpreter for slurm jobs
@@ -35,8 +32,8 @@ class UnsafeExecutor(Executor):
 
         run_script = self.RUN_SCRIPT_TEMPLATE.render(
             python_version=python_version,
-            memory_limit_kb=mem_limit_kb,
-            time_limit=time_limit_secs,
+            memory_limit_kb=context.memory_limit_mb * 1024,
+            time_limit=context.time_limit_secs * 1000,
             entry_point=str(package_dir / program.entrypoint),
         )
 
@@ -48,6 +45,6 @@ class UnsafeExecutor(Executor):
             (self.ENTRYPOINT, run_script, True),
         ]
 
-    def _cmd(self, cwd: Path) -> tuple[list[str], dict[str, str]]:
+    def _cmd(self, cwd: Path, *_unused) -> ExecutorCmd:
         # NOTE: We need to unset VIRTUAL_ENV to prevent uv from using the wrong base python interpreter
         return [str(cwd / self.ENTRYPOINT)], {"VIRTUAL_ENV": "''"}
