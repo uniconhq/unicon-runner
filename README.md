@@ -3,8 +3,7 @@
 Starting a long-running process that listens to the task queue:
 
 ```bash
-uv run unicon_runner/app.py \
-    start [unsafe | sandbox | podman] <root-working-dir>
+uv run -m unicon_runner start [unsafe | sandbox | podman] <root-working-dir>
 ```
 > [!NOTE]
 `RABBITMQ_URL` needs to be set either in the `.env` file or as an environment variable.
@@ -14,22 +13,28 @@ uv run unicon_runner/app.py \
 Test the runner with a sample program:
 
 ```bash
-uv run unicon_runner/app.py \
-    test [unsafe | sandbox | podman] <root-working-dir> \
+uv run -m unicon_runner test [unsafe | sandbox | podman] <root-working-dir> \
     <job-json-file> \
     [--slurm] \
     [--slurm_opt <slurm-option>]
 
 # Example of running a job with the sandbox executor that 
 # requires runtime dependencies on a Slurm cluster and (also a GPU just for fun)
-uv run unicon_runner/app.py \
-    test sandbox ./temp \
+uv run -m unicon_runner test sandbox <root-working-dir> \
     examples/runtime_deps.json \
     --slurm \
     --slurm_opt "--gpus=1"
 ```
 
 > Example job files can be found in the `/examples` directory.
+
+Installing the runner as an executable:
+
+```bash
+uv tool install --from git+https://github.com/uniconhq/unicon-runner.git unicon-runner
+
+unicon-runner --help
+```
 
 ## Executors
 
