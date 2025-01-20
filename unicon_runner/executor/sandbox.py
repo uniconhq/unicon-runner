@@ -33,12 +33,16 @@ class SandboxExecutor(UnsafeExecutor):
         # fmt: off
         return [
             str(self._conty_bin.absolute()),
+            # All directories are mounted as read-only, whitelist directories individually to allow write access
             "--ro-bind", *(["/"] * 2),
             "--ro-bind", *([str(uv_path)] * 2),
-            "--ro-bind", *([str(uv_app_state_path)] * 2),
+            "--bind", *([str(uv_app_state_path)] * 2),
             "--bind", *([str(uv_cache_path)] * 2),
+            # NOTE: By default, `conty` sandboxes are located under `/tmp`
+            # As such, R/W access to `/tmp` is required
+            "--bind", *(["/tmp"] * 2),
             # R/W bind to the root working directory
-            "--bind", *([str(cwd.parents[0])] * 2),
+            "--bind", *([str(cwd.parents[0].absolute())] * 2),
             # NOTE: Mount `procfs` to allow access to process information
             # This seems be required for GPU workloads
             "--proc", "/proc",
