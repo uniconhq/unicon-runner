@@ -16,6 +16,9 @@ dependencies = [
     "requests>=2.32.3",
 ]
 
+[project.scripts]
+unicon-runner = "unicon_runner.cli:app"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

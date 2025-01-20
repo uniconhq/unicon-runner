@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from functools import partial
 from pathlib import Path
 from typing import Annotated
@@ -8,13 +9,25 @@ import pika.spec
 import typer
 from pika.adapters.blocking_connection import BlockingChannel
 from pika.exchange_type import ExchangeType
+from rich.logging import RichHandler
 
 from unicon_runner.constants import EXCHANGE_NAME, RABBITMQ_URL, RESULT_QUEUE_NAME, TASK_QUEUE_NAME
 from unicon_runner.executor import create_executor
 from unicon_runner.executor.base import Executor, ExecutorType, ProgramResult
 from unicon_runner.models import Job, JobResult, Program
 
-app = typer.Typer()
+logging.basicConfig(
+    level="INFO",
+    format="[magenta]%(funcName)s[/] - %(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler(markup=True)],
+)
+logging.getLogger("asyncio").setLevel(logging.INFO)
+logging.getLogger("pika").setLevel(logging.WARN)
+
+logger = logging.getLogger("unicon_runner")
+
+app = typer.Typer(name="Unicon 🦄 Runner")
 
 
 async def _run_job_async(executor: Executor, job: Job) -> JobResult:
@@ -91,8 +104,14 @@ RootWorkingDirectory = Annotated[
 ]
 
 
+@app.callback()
+def main():
+    """Unicon 🦄 Runner"""
+
+
 @app.command()
 def start(exec_type: ExecutorType, root_wd_dir: RootWorkingDirectory) -> None:
+    """Starts the unicon-runner service"""
     in_ch, out_ch = init_mq()
     logger.info("Initialized task and result queues")
 
@@ -121,6 +140,7 @@ def test(
     slurm: bool = False,
     slurm_opt: list[str] | None = None,
 ) -> None:
+    """Test executors"""
     # Dynamically set the slurm flag
     import json
 
@@ -151,22 +171,3 @@ def test(
         tbl.add_column("stderr", style="red")
         tbl.add_row(prog_result.status, prog_result.stdout, prog_result.stderr)
         _console.print(tbl)
-
-
-if __name__ == "__main__":
-    import logging
-
-    from rich.logging import RichHandler
-
-    logging.basicConfig(
-        level="INFO",
-        format="[magenta]%(funcName)s[/] - %(message)s",
-        datefmt="[%X]",
-        handlers=[RichHandler(markup=True)],
-    )
-    logging.getLogger("asyncio").setLevel(logging.INFO)
-    logging.getLogger("pika").setLevel(logging.WARN)
-
-    logger = logging.getLogger("unicon_runner")
-
-    app()
