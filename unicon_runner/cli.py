@@ -2,7 +2,7 @@ import asyncio
 import logging
 from functools import partial
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import pika
 import pika.spec
@@ -139,15 +139,17 @@ def test(
     job_file: Annotated[Path, typer.Argument(exists=True, readable=True)],
     slurm: bool = False,
     slurm_opt: list[str] | None = None,
+    slurm_use_system_py: bool = False,
 ) -> None:
     """Test executors"""
     # Dynamically set the slurm flag
     import json
 
-    job_json = json.loads(job_file.read_text())
-    if "context" in job_json:
-        job_json["context"]["slurm"] = slurm
-        job_json["context"]["slurm_options"] = slurm_opt or []
+    job_json: dict[str, Any] = json.loads(job_file.read_text())
+    if job_context := job_json.get("context"):
+        job_context["slurm"] = slurm
+        job_context["slurm_options"] = slurm_opt or []
+        job_context["slurm_use_system_py"] = slurm_use_system_py
 
     job = Job.model_validate(job_json)
     executor = create_executor(exec_type, root_wd_dir)
