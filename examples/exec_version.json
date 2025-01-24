@@ -1,0 +1,19 @@
+{
+    "programs": [
+        {
+            "entrypoint": "exec.py",
+            "files": [
+                {
+                    "name": "exec.py",
+                    "content": "import sys; print(sys.executable, sys.version)"
+                }
+            ]
+        }
+    ],
+    "context": {
+        "language": "PYTHON",
+        "memory_limit_mb": 100,
+        "time_limit_secs": 5,
+        "extra_options": {}
+    }
+}
