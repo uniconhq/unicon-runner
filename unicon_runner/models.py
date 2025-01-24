@@ -27,9 +27,14 @@ class ComputeContext(BaseModel):
     memory_limit_mb: int
 
     slurm: bool = False
+    # Additional options for `srun`
+    # e.g. [--gpus", "1", "--cpus-per-task", "2"]
     slurm_options: list[str] = []
+    # Use python interpreter present in the allocated slurm node
+    # If true, ignores python version specified under `extra_options` and default fallback python version
+    slurm_use_system_py: bool = False
 
-    extra_options: dict[str, str] | None
+    extra_options: dict[str, str] = {}
 
 
 class Program(BaseModel):

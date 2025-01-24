@@ -23,7 +23,7 @@ class UnsafeExecutor(Executor):
         )
 
         python_version: str = DEFAULT_EXEC_PY_VERSION
-        if context.slurm:
+        if context.slurm and context.slurm_use_system_py:
             # NOTE: We need to use the system python interpreter for slurm jobs
             # This is because of filesystem restrictions in the slurm environment (more details in the docs)
             python_version = "/usr/bin/python"
