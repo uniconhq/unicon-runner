@@ -5,7 +5,7 @@
             "files": [
                 {
                     "name": "exec.py",
-                    "content": "import sys; print(sys.executable, sys.version)"
+                    "content": "import sys, os; print(sys.executable, sys.version); print(os.uname())"
                 }
             ]
         }
