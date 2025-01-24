@@ -2,7 +2,7 @@ import asyncio
 import logging
 from functools import partial
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 import pika
 import pika.spec
@@ -137,21 +137,25 @@ def test(
     exec_type: ExecutorType,
     root_wd_dir: RootWorkingDirectory,
     job_file: Annotated[Path, typer.Argument(exists=True, readable=True)],
-    slurm: bool = False,
+    slurm: bool | None = None,
     slurm_opt: list[str] | None = None,
-    slurm_use_system_py: bool = False,
+    slurm_use_system_py: bool | None = None,
+    exec_py_version: str | None = None,
 ) -> None:
     """Test executors"""
-    # Dynamically set the slurm flag
-    import json
+    job = Job.model_validate_json(job_file.read_bytes())
+    job.context.slurm = slurm or job.context.slurm
+    job.context.slurm_options = slurm_opt or job.context.slurm_options
+    job.context.slurm_use_system_py = slurm_use_system_py or job.context.slurm_use_system_py
+    if py_exec_version := job.context.extra_options.get("version"):
+        # If there exists a version specification in the job file, only replace it with
+        # `exec_py_version` if it is provided (is not None).
+        job.context.extra_options["version"] = exec_py_version or py_exec_version
+    elif exec_py_version:
+        # If there is no version specification in the job file, set it to `exec_py_version`
+        # only if it is provided (is not None).
+        job.context.extra_options["version"] = exec_py_version
 
-    job_json: dict[str, Any] = json.loads(job_file.read_text())
-    if job_context := job_json.get("context"):
-        job_context["slurm"] = slurm
-        job_context["slurm_options"] = slurm_opt or []
-        job_context["slurm_use_system_py"] = slurm_use_system_py
-
-    job = Job.model_validate(job_json)
     executor = create_executor(exec_type, root_wd_dir)
 
     from rich.console import Console

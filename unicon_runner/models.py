@@ -34,7 +34,7 @@ class ComputeContext(BaseModel):
     # If true, ignores python version specified under `extra_options` and default fallback python version
     slurm_use_system_py: bool = False
 
-    extra_options: dict[str, str] | None
+    extra_options: dict[str, str] = {}
 
 
 class Program(BaseModel):
