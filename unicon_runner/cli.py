@@ -75,6 +75,7 @@ def exec_pipeline(
 
 def init_mq() -> tuple[BlockingChannel, BlockingChannel]:
     from unicon_runner.constants import (
+        AMQP_CONN_NAME,
         AMQP_EXCHANGE_NAME,
         AMQP_RESULT_QUEUE_NAME,
         AMQP_TASK_QUEUE_NAME,
@@ -84,7 +85,9 @@ def init_mq() -> tuple[BlockingChannel, BlockingChannel]:
     if AMQP_URL is None:
         raise RuntimeError("RABBITMQ_URL environment variable not defined")
 
-    conn = pika.BlockingConnection(pika.URLParameters(AMQP_URL))
+    conn_params = pika.URLParameters(AMQP_URL)
+    conn_params.client_properties = {"connection_name": AMQP_CONN_NAME}
+    conn = pika.BlockingConnection(conn_params)
 
     in_ch, out_ch = conn.channel(), conn.channel()
     for ch in [in_ch, out_ch]:
