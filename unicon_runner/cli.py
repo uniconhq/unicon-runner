@@ -11,7 +11,6 @@ from pika.adapters.blocking_connection import BlockingChannel
 from pika.exchange_type import ExchangeType
 from rich.logging import RichHandler
 
-from unicon_runner.constants import EXCHANGE_NAME, RABBITMQ_URL, RESULT_QUEUE_NAME, TASK_QUEUE_NAME
 from unicon_runner.executor import create_executor
 from unicon_runner.executor.base import Executor, ExecutorType, ProgramResult
 from unicon_runner.models import Job, JobResult, Program
@@ -56,6 +55,8 @@ def exec_pipeline(
     out_ch: BlockingChannel,
     executor: Executor,
 ) -> None:
+    from unicon_runner.constants import AMQP_EXCHANGE_NAME, AMQP_RESULT_QUEUE_NAME
+
     logger.info(f"Received message: {len(msg_body)} bytes")
     job = Job.model_validate_json(msg_body)
     logger.info(f"Received job: {job.model_extra}")
@@ -63,9 +64,7 @@ def exec_pipeline(
     result = _run_job(executor, job)
 
     logger.info(f"Pushing result: {result.model_extra}")
-    out_ch.basic_publish(
-        exchange=EXCHANGE_NAME, routing_key=RESULT_QUEUE_NAME, body=result.model_dump_json()
-    )
+    out_ch.basic_publish(AMQP_EXCHANGE_NAME, AMQP_RESULT_QUEUE_NAME, result.model_dump_json())
 
     if not result.success:
         # Requeue the message if the executor failed to run the job
@@ -75,20 +74,27 @@ def exec_pipeline(
 
 
 def init_mq() -> tuple[BlockingChannel, BlockingChannel]:
-    if RABBITMQ_URL is None:
+    from unicon_runner.constants import (
+        AMQP_EXCHANGE_NAME,
+        AMQP_RESULT_QUEUE_NAME,
+        AMQP_TASK_QUEUE_NAME,
+        AMQP_URL,
+    )
+
+    if AMQP_URL is None:
         raise RuntimeError("RABBITMQ_URL environment variable not defined")
 
-    conn = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
+    conn = pika.BlockingConnection(pika.URLParameters(AMQP_URL))
 
     in_ch, out_ch = conn.channel(), conn.channel()
     for ch in [in_ch, out_ch]:
-        ch.exchange_declare(exchange=EXCHANGE_NAME, exchange_type=ExchangeType.topic)
+        ch.exchange_declare(exchange=AMQP_EXCHANGE_NAME, exchange_type=ExchangeType.topic)
 
-    in_ch.queue_declare(queue=TASK_QUEUE_NAME, durable=True)
-    in_ch.queue_bind(TASK_QUEUE_NAME, EXCHANGE_NAME, TASK_QUEUE_NAME)
+    in_ch.queue_declare(queue=AMQP_TASK_QUEUE_NAME, durable=True)
+    in_ch.queue_bind(AMQP_TASK_QUEUE_NAME, AMQP_EXCHANGE_NAME, AMQP_TASK_QUEUE_NAME)
 
-    out_ch.queue_declare(queue=RESULT_QUEUE_NAME, durable=True)
-    out_ch.queue_bind(RESULT_QUEUE_NAME, EXCHANGE_NAME, RESULT_QUEUE_NAME)
+    out_ch.queue_declare(queue=AMQP_RESULT_QUEUE_NAME, durable=True)
+    out_ch.queue_bind(AMQP_RESULT_QUEUE_NAME, AMQP_EXCHANGE_NAME, AMQP_RESULT_QUEUE_NAME)
 
     return in_ch, out_ch
 
@@ -111,6 +117,8 @@ def main():
 
 @app.command()
 def start(exec_type: ExecutorType, root_wd_dir: RootWorkingDirectory) -> None:
+    from unicon_runner.constants import AMQP_TASK_QUEUE_NAME
+
     """Starts the unicon-runner service"""
     in_ch, out_ch = init_mq()
     logger.info("Initialized task and result queues")
@@ -121,7 +129,7 @@ def start(exec_type: ExecutorType, root_wd_dir: RootWorkingDirectory) -> None:
 
     in_ch.basic_qos(prefetch_count=1)
     in_ch.basic_consume(
-        TASK_QUEUE_NAME,
+        AMQP_TASK_QUEUE_NAME,
         on_message_callback=partial(exec_pipeline, out_ch=out_ch, executor=executor),
         auto_ack=False,
     )
