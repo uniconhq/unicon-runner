@@ -24,7 +24,9 @@ JINJA_ENV = Environment(
 def is_mounted_on_nfs(path: Path) -> bool:
     """Check if the given path is mounted on an NFS filesystem"""
     dev_no: int = os.stat(path).st_dev
-    nfs_partitions = [p for p in psutil.disk_partitions(all=True) if p.fstype == "nfs"]
+    # `fstype` for NFS filesystems is usually `nfs` or `nfs4`
+    # `nfs` is for NFSv2 and NFSv3
+    nfs_partitions = [p for p in psutil.disk_partitions(all=True) if p.fstype.startswith("nfs")]
     return any(os.lstat(nfs_p.mountpoint).st_dev == dev_no for nfs_p in nfs_partitions)
 
 
