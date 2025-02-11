@@ -11,8 +11,9 @@ uv -q --no-cache add -r requirements.txt
 # Reference: https://ss64.com/bash/ulimit.html
 ulimit -v {{ memory_limit_kb }}
 # NOTE: Exit code is preserved if process is does not exceed time limit
+# NOTE: Time limit is set in seconds
 # Reference: https://www.man7.org/linux/man-pages/man1/timeout.1.html
-timeout {{ time_limit }} uv -q run {{ entry_point }}
+timeout {{ time_limit_secs }} uv -q run {{ entry_point }}
 
 {% block append %}
 {% endblock append %}

@@ -33,7 +33,7 @@ class UnsafeExecutor(Executor):
         run_script = self.RUN_SCRIPT_TEMPLATE.render(
             python_version=python_version,
             memory_limit_kb=context.memory_limit_mb * 1024,
-            time_limit=context.time_limit_secs * 1000,
+            time_limit_secs=context.time_limit_secs,
             entry_point=str(package_dir / program.entrypoint),
         )
 

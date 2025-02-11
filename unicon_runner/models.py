@@ -23,7 +23,7 @@ class Language(str, Enum):
 
 class ComputeContext(BaseModel):
     language: Language
-    time_limit_secs: int
+    time_limit_secs: float
     memory_limit_mb: int
 
     slurm: bool = False
