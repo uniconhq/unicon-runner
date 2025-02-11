@@ -67,8 +67,8 @@ def exec_pipeline(
     out_ch.basic_publish(AMQP_EXCHANGE_NAME, AMQP_RESULT_QUEUE_NAME, result.model_dump_json())
 
     if not result.success:
-        # Requeue the message if the executor failed to run the job
-        in_ch.basic_nack(delivery_tag=method.delivery_tag)
+        # If the job failed to run, only requeue if it has not been redelivered
+        in_ch.basic_nack(delivery_tag=method.delivery_tag, requeue=not method.redelivered)
     else:
         in_ch.basic_ack(delivery_tag=method.delivery_tag)
 
