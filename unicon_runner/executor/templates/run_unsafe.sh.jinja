@@ -3,9 +3,31 @@
 # Change directory to the working directory
 cd "$(dirname "$0")"
 
-# Install required Python interpreter and dependencies
-uv -q venv --python {{ python_version }}
-uv -q --no-cache add -r requirements.txt
+cmd_create_venv="uv -q venv --python {{ python_version }}"
+cmd_install_deps="uv -q --no-cache add -r requirements.txt"
+cmd_run="timeout {{ time_limit_secs }} uv -q run {{ entry_point }}"
+
+{% if track_elapsed_time %}
+measure_elapsed_time() {
+    local command="$1"
+    local output_file="$2"
+
+    local start_time_ns=$(date +%s%N)
+    eval "$command"
+    local end_time_ns=$(date +%s%N)
+
+    local execution_time_ns=$((end_time_ns - start_time_ns))
+    echo "$execution_time_ns" > "$output_file"
+}
+{% endif %}
+
+{% if track_elapsed_time %}
+measure_elapsed_time "$cmd_create_venv" {{ create_venv_time_file }}
+measure_elapsed_time "$cmd_install_deps" {{ install_deps_time_file }}
+{% else %}
+$cmd_create_venv
+$cmd_install_deps
+{% endif %}
 
 # NOTE: Memory limit is set in kilobytes
 # Reference: https://ss64.com/bash/ulimit.html
@@ -13,7 +35,11 @@ ulimit -v {{ memory_limit_kb }}
 # NOTE: Exit code is preserved if process is does not exceed time limit
 # NOTE: Time limit is set in seconds
 # Reference: https://www.man7.org/linux/man-pages/man1/timeout.1.html
-timeout {{ time_limit_secs }} uv -q run {{ entry_point }}
+{% if track_elapsed_time %}
+measure_elapsed_time "$cmd_run" {{ run_time_file }}
+{% else %}
+$cmd_run
+{% endif %}
 
 {% block append %}
 {% endblock append %}
