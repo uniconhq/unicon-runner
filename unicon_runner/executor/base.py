@@ -211,6 +211,6 @@ class Executor(ABC):
                 "status": status.value,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
-                "elpased_time_ns": perf.program_ns if perf else None,
+                "elapsed_time_ns": perf.program_ns if perf else None,
             }
         )
