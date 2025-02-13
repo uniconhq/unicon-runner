@@ -11,3 +11,13 @@ cp -r {{ staging_dir }}/* {{ exec_dir }}
 
 # Run the job script
 {{ run_script }}
+
+# Preserve exit code of job script
+job_script_exit_code=$?
+
+# Copy all files from the execution directory to the NFS staging directory
+{% for file in files_to_preserve %}
+cp {{ exec_dir }}/{{ file }} {{ staging_dir }}/
+{% endfor %}
+
+exit $job_script_exit_code
