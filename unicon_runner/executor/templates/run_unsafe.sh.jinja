@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 
 cmd_create_venv="uv -q venv --python {{ python_version }}"
 cmd_install_deps="uv -q --no-cache add -r requirements.txt"
-cmd_run="timeout {{ time_limit_secs }} uv -q run {{ entry_point }}"
+cmd_run_program="timeout {{ time_limit_secs }} uv -q run {{ entry_point }}"
 
 {% if track_elapsed_time %}
 measure_elapsed_time() {
@@ -36,10 +36,7 @@ ulimit -v {{ memory_limit_kb }}
 # NOTE: Time limit is set in seconds
 # Reference: https://www.man7.org/linux/man-pages/man1/timeout.1.html
 {% if track_elapsed_time %}
-measure_elapsed_time "$cmd_run" {{ run_time_file }}
+measure_elapsed_time "$cmd_run_program" {{ program_time_file }}
 {% else %}
-$cmd_run
+$cmd_run_program
 {% endif %}
-
-{% block append %}
-{% endblock append %}
