@@ -8,12 +8,20 @@ import uuid
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
+from typing import Final
 
 import psutil
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from unicon_runner.constants import DEFAULT_SLURM_OPTS
-from unicon_runner.models import ComputeContext, ExecutorResult, Program, ProgramResult, Status
+from unicon_runner.models import (
+    ComputeContext,
+    ExecutorPerf,
+    ExecutorResult,
+    Program,
+    ProgramResult,
+    Status,
+)
 
 logger = logging.getLogger("unicon_runner")
 
@@ -61,13 +69,35 @@ class ExecutorType(str, Enum):
     SANDBOX = "sandbox"
 
 
+# NOTE: The keys corresponds to the jinja template variables
+TIME_TRACKING_FILES: Final[dict[str, str]] = {
+    "create_venv_time_file": ".create_venv_time_ns",
+    "install_deps_time_file": ".install_deps_time_ns",
+    "program_time_file": ".program_time_ns",
+}
+
+
+def collect_perf_results(root: Path) -> ExecutorPerf:
+    def get_time_ns(file_path: Path) -> int:
+        return int(file_path.read_text()) if file_path.read_text() else 0
+
+    return ExecutorPerf(
+        create_venv_ns=get_time_ns(root / TIME_TRACKING_FILES["create_venv_time_file"]),
+        install_deps_ns=get_time_ns(root / TIME_TRACKING_FILES["install_deps_time_file"]),
+        program_ns=get_time_ns(root / TIME_TRACKING_FILES["program_time_file"]),
+    )
+
+
 class Executor(ABC):
     def __init__(self, root_dir: Path):
         self._root_dir = root_dir
 
     @abstractmethod
     def get_filesystem_mapping(
-        self, program: Program, context: ComputeContext
+        self,
+        program: Program,
+        context: ComputeContext,
+        elapsed_time_tracking_files: dict[str, str] | None = None,
     ) -> FileSystemMapping:
         """
         Mapping of files (path, content) to be written to the working directory of the executor
@@ -91,12 +121,18 @@ class Executor(ABC):
         return True, ""
 
     async def run(
-        self, program: Program, context: ComputeContext, cleanup: bool = True
+        self,
+        program: Program,
+        context: ComputeContext,
+        cleanup: bool = True,
+        track_elapsed_time: bool = True,
     ) -> ProgramResult:
         _tracking_fields = program.model_extra or {}
         id: str = str(uuid.uuid4())  # Unique identifier for the program
         with ExecutorWorkspace(self._root_dir, id, cleanup) as workspace:
-            for path, content, is_exec in self.get_filesystem_mapping(program, context):
+            for path, content, is_exec in self.get_filesystem_mapping(
+                program, context, TIME_TRACKING_FILES if track_elapsed_time else None
+            ):
                 logger.info(f"Writing file: [magenta]{path}[/]")
                 file_path = workspace / path
                 file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -126,6 +162,9 @@ class Executor(ABC):
                         [f"export {key}={value}" for key, value in prog_env_vars.items()]
                     ),
                     run_script=shlex.join(prog_cmd),
+                    files_to_preserve=list(TIME_TRACKING_FILES.values())
+                    if track_elapsed_time
+                    else [],
                 )
                 slurm_script_path = workspace / "slurm.sh"
                 slurm_script_path.write_text(slurm_script)
@@ -150,6 +189,7 @@ class Executor(ABC):
                     env={**os.environ, **env_vars},
                 )
             )
+            perf = collect_perf_results(workspace) if track_elapsed_time else None
 
         match result.exit_code:
             case 137:
@@ -167,5 +207,6 @@ class Executor(ABC):
                 "status": status.value,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
+                "elpased_time_ns": perf.program_ns if perf else None,
             }
         )
