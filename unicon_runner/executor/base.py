@@ -189,7 +189,11 @@ class Executor(ABC):
                     env={**os.environ, **env_vars},
                 )
             )
-            perf = collect_perf_results(workspace) if track_elapsed_time else None
+
+            if perf := (collect_perf_results(workspace) if track_elapsed_time else None):
+                logger.info(f"[Setup] Create venv: {perf.create_venv_ns / 1e6:.4f}ms")
+                logger.info(f"[Setup] Install deps: {perf.install_deps_ns / 1e6:.4f}ms")
+                logger.info(f"[Program] Elapsed time: {perf.program_ns / 1e6:.4f}ms")
 
         match result.exit_code:
             case 137:
