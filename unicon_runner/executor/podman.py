@@ -8,7 +8,7 @@ from unicon_runner.models import ComputeContext, Program
 class PodmanExecutor(Executor):
     """Uses podman + Dockerfile in template to execute code"""
 
-    def get_filesystem_mapping(self, program: Program, _: ComputeContext) -> FileSystemMapping:
+    def get_filesystem_mapping(self, program: Program, *_unused) -> FileSystemMapping:
         return [(Path(file.name), file.content, False) for file in program.files]
 
     def _cmd(self, cwd: Path, program: Program, context: ComputeContext) -> ExecutorCmd:

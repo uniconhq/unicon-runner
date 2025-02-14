@@ -13,7 +13,7 @@ def _get_env_var(name: str, default: str | None = None, required: bool = True):
     return value
 
 
-AMQP_URL: Final[str] = _get_env_var("AMQP_URL")
+AMQP_URL: Final[str] = _get_env_var("AMQP_URL", required=False)
 AMQP_EXCHANGE_NAME: Final[str] = _get_env_var("AMQP_EXCHANGE_NAME", "unicon")
 AMQP_TASK_QUEUE_NAME: Final[str] = _get_env_var("AMQP_TASK_QUEUE_NAME", "unicon.tasks")
 AMQP_RESULT_QUEUE_NAME: Final[str] = _get_env_var("AMQP_RESULT_QUEUE_NAME", "unicon.results")

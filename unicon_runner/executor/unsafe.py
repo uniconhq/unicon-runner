@@ -14,7 +14,10 @@ class UnsafeExecutor(Executor):
     ENTRYPOINT: Path = Path("run.sh")
 
     def get_filesystem_mapping(
-        self, program: Program, context: ComputeContext
+        self,
+        program: Program,
+        context: ComputeContext,
+        elapsed_time_tracking_files: dict[str, str] | None = None,
     ) -> FileSystemMapping:
         package_dir = Path("src")
 
@@ -35,6 +38,8 @@ class UnsafeExecutor(Executor):
             memory_limit_kb=context.memory_limit_mb * 1024,
             time_limit_secs=context.time_limit_secs,
             entry_point=str(package_dir / program.entrypoint),
+            track_elapsed_time=elapsed_time_tracking_files is not None,
+            **(elapsed_time_tracking_files or {}),
         )
 
         return [

@@ -177,14 +177,21 @@ def test(
     async def _run_job(program: Program) -> ProgramResult:
         # Since this is a test, we don't want to clean up the working directory
         # This is so that we can easily inspect the files written and replay the execution
-        return await executor.run(program, job.context, cleanup=False)
+        return await executor.run(program, job.context, cleanup=False, track_elapsed_time=True)
 
     for i, program in enumerate(job.programs):
         prog_result = asyncio.run(_run_job(program))
+        assert prog_result.elapsed_time_ns is not None
 
         tbl = Table(title=f"Program Result #{i + 1}", highlight=True)
         tbl.add_column("status", style="magenta")
         tbl.add_column("stdout")
         tbl.add_column("stderr", style="red")
-        tbl.add_row(prog_result.status, prog_result.stdout, prog_result.stderr)
+        tbl.add_column("Elapsed Time (ms)", style="green")
+        tbl.add_row(
+            prog_result.status,
+            prog_result.stdout,
+            prog_result.stderr,
+            f"{prog_result.elapsed_time_ns / 1e6:.4f}ms",
+        )
         _console.print(tbl)
