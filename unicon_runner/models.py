@@ -65,7 +65,7 @@ class ProgramResult(BaseModel):
     stderr: str | None
     status: Status | None
 
-    elapsed_time_ns: int | None
+    elapsed_time_ns: int | None = None
 
 
 class ExecutorPerf(BaseModel):
