@@ -12,6 +12,7 @@ from pathlib import Path
 import psutil
 from jinja2 import Environment, PackageLoader, select_autoescape
 
+from unicon_runner.constants import DEFAULT_SLURM_OPTS
 from unicon_runner.models import ComputeContext, ExecutorResult, Program, ProgramResult, Status
 
 logger = logging.getLogger("unicon_runner")
@@ -132,7 +133,8 @@ class Executor(ABC):
 
                 # NOTE: `--quiet` flag is used to suppress informational messages from `srun` being logged into stderr
                 # Errors will NOT be suppressed
-                cmd = ["srun", "--quiet", *context.slurm_options, str(slurm_script_path)]
+                slurm_options: list[str] = [DEFAULT_SLURM_OPTS, *context.slurm_options]
+                cmd = ["srun", "--quiet", *slurm_options, str(slurm_script_path)]
                 env_vars = {}
             else:
                 cmd, env_vars = self._cmd(workspace, program, context)

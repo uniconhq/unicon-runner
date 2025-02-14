@@ -20,6 +20,7 @@ AMQP_RESULT_QUEUE_NAME: Final[str] = _get_env_var("AMQP_RESULT_QUEUE_NAME", "uni
 AMQP_CONN_NAME: Final[str] = _get_env_var("AMQP_CONN_NAME", "unicon-runner")
 
 DEFAULT_EXEC_PY_VERSION: Final[str] = _get_env_var("DEFAULT_EXEC_PY_VERSION", "3.11.9")
+DEFAULT_SLURM_OPTS: Final[str] = _get_env_var("DEFAULT_SLURM_OPTS", "")
 
 CONTY_PATH: Final[str] = _get_env_var("CONTY_PATH", "conty.sh")
 CONTY_DOWNLOAD_URL: Final[str] = _get_env_var(
