@@ -65,11 +65,21 @@ class ProgramResult(BaseModel):
     stderr: str | None
     status: Status | None
 
+    elapsed_time_ns: int | None = None
+
+
+class ExecutorPerf(BaseModel):
+    create_venv_ns: int
+    install_deps_ns: int
+    program_ns: int
+
 
 class ExecutorResult(BaseModel):
     exit_code: int
     stdout: str
     stderr: str
+
+    perf: ExecutorPerf | None = None
 
 
 class Job(BaseModel):
