@@ -15,7 +15,7 @@
         "memory_limit_mb": 30000,
         "time_limit_secs": 500,
         "extra_options": {
-            "requirements": "torch\nnumpy"
+            "requirements": ["torch", "numpy"]
         }
     }
 }
